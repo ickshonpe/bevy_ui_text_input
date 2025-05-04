@@ -1,14 +1,14 @@
 use arboard::Clipboard;
+use bevy::ecs::component::Component;
 use bevy::ecs::entity::Entity;
 use bevy::ecs::event::EventReader;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::observer::Trigger;
+use bevy::ecs::system::Commands;
 use bevy::ecs::system::Local;
 use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
-use bevy::ecs::component::Component;
-use bevy::ecs::system::Commands;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::Key;
 use bevy::input::keyboard::KeyboardInput;
@@ -18,9 +18,9 @@ use bevy::input_focus::InputFocus;
 use bevy::math::Rect;
 use bevy::picking::events::Click;
 use bevy::picking::events::Drag;
+use bevy::picking::events::Move;
 use bevy::picking::events::Pointer;
 use bevy::picking::events::Pressed;
-use bevy::picking::events::Move;
 use bevy::picking::hover::HoverMap;
 use bevy::picking::pointer::PointerButton;
 use bevy::text::cosmic_text::Action;
@@ -469,7 +469,7 @@ pub(crate) fn on_drag_text_input(
         return;
     };
 
-    if !input.is_enabled {
+    if !input.is_enabled || !input.focus_on_pointer_down {
         return;
     }
 
@@ -620,11 +620,11 @@ pub fn on_multi_click_set_selection(
 
     let entity = click.target();
 
-    if let Ok(input) = text_input_nodes.get(click.target()) {
-        if !input.is_enabled || !input.focus_on_pointer_down {
-            return;
-        }
-    } else {
+    let Ok(input) = text_input_nodes.get(click.target()) else {
+        return;
+    };
+
+    if !input.is_enabled || !input.focus_on_pointer_down {
         return;
     }
 
@@ -632,7 +632,9 @@ pub fn on_multi_click_set_selection(
     if let Ok(mut multi_click_data) = multi_click_datas.get_mut(entity) {
         if now - multi_click_data.last_click_time <= MULTI_CLICK_TIMER {
             if let Ok(mut buffer) = buffers.get_mut(entity) {
-                let mut editor = buffer.editor.borrow_with(&mut text_input_pipeline.font_system);
+                let mut editor = buffer
+                    .editor
+                    .borrow_with(&mut text_input_pipeline.font_system);
                 match multi_click_data.times {
                     1 => {
                         multi_click_data.times += 1;
@@ -653,13 +655,16 @@ pub fn on_multi_click_set_selection(
                         }
                         return;
                     }
-                    _ => ()
+                    _ => (),
                 }
             }
         }
     }
     if let Ok(mut entity) = commands.get_entity(entity) {
-        entity.try_insert(MultiClickData { last_click_time: now, times: 1 });
+        entity.try_insert(MultiClickData {
+            last_click_time: now,
+            times: 1,
+        });
     }
 }
 
