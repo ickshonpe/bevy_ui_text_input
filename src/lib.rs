@@ -121,14 +121,14 @@ impl Default for TextInputNode {
     }
 }
 
-fn on_add_textinputnode(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+fn on_add_textinputnode(mut world: DeferredWorld, context: HookContext) {
     for mut observer in [
         Observer::new(on_drag_text_input),
         Observer::new(on_text_input_pressed),
         Observer::new(on_multi_click_set_selection),
         Observer::new(on_move_clear_multi_click),
     ] {
-        observer.watch_entity(entity);
+        observer.watch_entity(context.entity);
         world.commands().spawn(observer);
     }
 }
