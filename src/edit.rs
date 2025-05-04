@@ -9,7 +9,6 @@ use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
 use bevy::ecs::component::Component;
 use bevy::ecs::system::Commands;
-use bevy::input::mouse::MouseMotion;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::Key;
 use bevy::input::keyboard::KeyboardInput;
