@@ -620,7 +620,7 @@ pub fn on_multi_click_set_selection(
 
     let entity = click.target();
 
-    let Ok(input) = text_input_nodes.get(click.target()) else {
+    let Ok(input) = text_input_nodes.get(entity) else {
         return;
     };
 
