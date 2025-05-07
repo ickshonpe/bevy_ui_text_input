@@ -79,6 +79,7 @@ impl Plugin for TextInputPlugin {
 )]
 #[component(
     on_add = on_add_textinputnode,
+    on_remove = on_remove_unfocus,
 )]
 pub struct TextInputNode {
     /// Whether the text should be cleared on submission
@@ -122,6 +123,13 @@ fn on_add_textinputnode(mut world: DeferredWorld, context: HookContext) {
     ] {
         observer.watch_entity(context.entity);
         world.commands().spawn(observer);
+    }
+}
+
+fn on_remove_unfocus(mut world: DeferredWorld, context: HookContext) {
+    let mut input_focus = world.resource_mut::<InputFocus>();
+    if input_focus.0 == Some(context.entity) {
+        input_focus.0 = None;
     }
 }
 
