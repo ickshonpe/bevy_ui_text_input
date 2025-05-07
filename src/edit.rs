@@ -207,7 +207,7 @@ pub fn text_input_edit_system(
                     Key::Character(str) => {
                         if let Some(char) = str.chars().next() {
                             match char {
-                                'c' => {
+                                'c' | 'C' => {
                                     // copy
                                     if let Ok(ref mut clipboard) = clipboard {
                                         if let Some(text) = editor.copy_selection() {
@@ -215,7 +215,7 @@ pub fn text_input_edit_system(
                                         }
                                     }
                                 }
-                                'x' => {
+                                'x' | 'X' => {
                                     // cut
                                     if let Ok(ref mut clipboard) = clipboard {
                                         if let Some(text) = editor.copy_selection() {
@@ -226,7 +226,7 @@ pub fn text_input_edit_system(
                                         editor.set_redraw(true);
                                     }
                                 }
-                                'v' => {
+                                'v' | 'V' => {
                                     // paste
                                     if let Ok(ref mut clipboard) = clipboard {
                                         if let Ok(text) = clipboard.get_text() {
@@ -240,17 +240,28 @@ pub fn text_input_edit_system(
                                         }
                                     }
                                 }
-                                'z' => {
+                                'z' | 'Z' => {
+                                    #[cfg(not(target_os = "macos"))]
                                     for action in commands.undo() {
                                         apply_action(&mut editor, action);
                                     }
+                                    #[cfg(target_os = "macos")]
+                                    if *shift_pressed {
+                                        for action in commands.redo() {
+                                            apply_action(&mut editor, action);
+                                        }
+                                    } else {
+                                        for action in commands.undo() {
+                                            apply_action(&mut editor, action);
+                                        }
+                                    }
                                 }
-                                'y' | 'Z' => {
+                                'y' | 'Y' => {
                                     for action in commands.redo() {
                                         apply_action(&mut editor, action);
                                     }
                                 }
-                                'a' => {
+                                'a' | 'A' => {
                                     // select all
                                     editor.action(Action::Motion(Motion::BufferStart));
                                     let cursor = editor.cursor();
