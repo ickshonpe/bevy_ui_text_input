@@ -39,7 +39,7 @@ use std::sync::Arc;
 #[derive(Resource)]
 pub struct TextInputPipeline {
     pub(crate) handle_to_font_id_map: HashMap<AssetId<Font>, (cosmic_text::fontdb::ID, Arc<str>)>,
-    pub(crate) font_system: cosmic_text::FontSystem,
+    pub font_system: cosmic_text::FontSystem,
     pub(crate) swash_cache: cosmic_text::SwashCache,
     pub(crate) font_atlas_sets: HashMap<AssetId<Font>, FontAtlasSet>,
 }
