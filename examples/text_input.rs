@@ -2,10 +2,12 @@
 
 use bevy::{
     color::palettes::css::{LIGHT_GOLDENROD_YELLOW, MAROON, RED},
-    prelude::*, text::cosmic_text::Align,
+    prelude::*,
+    text::cosmic_text::Align,
 };
 use bevy_ui_text_input::{
-    SubmitTextEvent, TextInputBuffer, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt, TextInputStyle, TextSubmissionEvent
+    SubmitTextEvent, TextInputBuffer, TextInputMode, TextInputNode, TextInputPlugin,
+    TextInputPrompt, TextInputStyle, TextSubmissionEvent,
 };
 
 fn main() {
@@ -280,8 +282,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                             ..Default::default()
                         })
                         .with_children(|commands| {
-                            
-                                commands
+                            commands
                             .spawn((
                                 Node {
                                     border: UiRect::all(Val::Px(2.)),
@@ -304,7 +305,6 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                 },
                             )
                             .with_child(Text::new(format!("wrap")));
-                            
                         });
 
                         commands
@@ -314,7 +314,6 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                             ..Default::default()
                         })
                         .with_children(|commands| {
-                            
                             commands
                             .spawn((
                                 Node {
