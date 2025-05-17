@@ -1,7 +1,9 @@
+use bevy::ecs::component::Component;
 use bevy::ecs::entity::Entity;
 use bevy::ecs::event::EventReader;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::observer::Trigger;
+use bevy::ecs::system::Commands;
 use bevy::ecs::system::Local;
 use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
@@ -13,7 +15,9 @@ use bevy::input::mouse::MouseScrollUnit;
 use bevy::input::mouse::MouseWheel;
 use bevy::input_focus::InputFocus;
 use bevy::math::Rect;
+use bevy::picking::events::Click;
 use bevy::picking::events::Drag;
+use bevy::picking::events::Move;
 use bevy::picking::events::Pointer;
 use bevy::picking::events::Pressed;
 use bevy::picking::hover::HoverMap;
@@ -491,7 +495,7 @@ pub(crate) fn on_drag_text_input(
         return;
     };
 
-    if !input.is_enabled {
+    if !input.is_enabled || !input.focus_on_pointer_down {
         return;
     }
 
@@ -531,7 +535,7 @@ pub(crate) fn on_text_input_pressed(
         return;
     };
 
-    if !input.is_enabled {
+    if !input.is_enabled || !input.focus_on_pointer_down {
         return;
     }
 
@@ -597,5 +601,101 @@ pub fn mouse_wheel_scroll(
                 };
             }
         }
+    }
+}
+
+pub fn clear_selection_on_focus_change(
+    input_focus: Res<InputFocus>,
+    mut text_input_pipeline: ResMut<TextInputPipeline>,
+    mut buffers: Query<&mut TextInputBuffer>,
+    mut previous_input_focus: Local<Option<Entity>>,
+) {
+    if *previous_input_focus != input_focus.0 {
+        if let Some(entity) = *previous_input_focus {
+            if let Ok(mut buffer) = buffers.get_mut(entity) {
+                buffer
+                    .editor
+                    .borrow_with(&mut text_input_pipeline.font_system)
+                    .set_selection(Selection::None);
+            }
+        }
+        *previous_input_focus = input_focus.0;
+    }
+}
+
+const MULTI_CLICK_TIMER: f32 = 0.5; // seconds
+
+#[derive(Component)]
+pub struct MultiClickData {
+    last_click_time: f32,
+    times: usize,
+}
+
+pub fn on_multi_click_set_selection(
+    click: Trigger<Pointer<Click>>,
+    time: Res<Time>,
+    text_input_nodes: Query<&TextInputNode>,
+    mut multi_click_datas: Query<&mut MultiClickData>,
+    mut text_input_pipeline: ResMut<TextInputPipeline>,
+    mut buffers: Query<&mut TextInputBuffer>,
+    mut commands: Commands,
+) {
+    if click.button != PointerButton::Primary {
+        return;
+    }
+
+    let entity = click.target();
+
+    let Ok(input) = text_input_nodes.get(entity) else {
+        return;
+    };
+
+    if !input.is_enabled || !input.focus_on_pointer_down {
+        return;
+    }
+
+    let now = time.elapsed_secs();
+    if let Ok(mut multi_click_data) = multi_click_datas.get_mut(entity) {
+        if now - multi_click_data.last_click_time <= MULTI_CLICK_TIMER {
+            if let Ok(mut buffer) = buffers.get_mut(entity) {
+                let mut editor = buffer
+                    .editor
+                    .borrow_with(&mut text_input_pipeline.font_system);
+                match multi_click_data.times {
+                    1 => {
+                        multi_click_data.times += 1;
+                        multi_click_data.last_click_time = now;
+                        editor.action(Action::Motion(Motion::LeftWord));
+                        let cursor = editor.cursor();
+                        editor.set_selection(Selection::Normal(cursor));
+                        editor.action(Action::Motion(Motion::RightWord));
+                        return;
+                    }
+                    2 => {
+                        editor.action(Action::Motion(Motion::ParagraphStart));
+                        let cursor = editor.cursor();
+                        editor.set_selection(Selection::Normal(cursor));
+                        editor.action(Action::Motion(Motion::ParagraphEnd));
+                        if let Ok(mut entity) = commands.get_entity(entity) {
+                            entity.try_remove::<MultiClickData>();
+                        }
+                        return;
+                    }
+                    _ => (),
+                }
+            }
+        }
+    }
+    if let Ok(mut entity) = commands.get_entity(entity) {
+        entity.try_insert(MultiClickData {
+            last_click_time: now,
+            times: 1,
+        });
+    }
+}
+
+pub fn on_move_clear_multi_click(move_: Trigger<Pointer<Move>>, mut commands: Commands) {
+    if let Ok(mut entity) = commands.get_entity(move_.target()) {
+        entity.try_remove::<MultiClickData>();
     }
 }

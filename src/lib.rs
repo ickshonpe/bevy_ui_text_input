@@ -14,6 +14,7 @@ use bevy::ecs::event::Event;
 use bevy::ecs::observer::Observer;
 use bevy::ecs::query::Changed;
 use bevy::ecs::schedule::IntoScheduleConfigs;
+use bevy::ecs::schedule::common_conditions::resource_changed;
 use bevy::ecs::system::Query;
 use bevy::ecs::world::DeferredWorld;
 use bevy::input_focus::InputFocus;
@@ -25,7 +26,11 @@ use bevy::text::TextColor;
 use bevy::text::cosmic_text::{Align, Buffer, Change, Edit, Editor, Metrics, Wrap};
 use bevy::text::{GlyphAtlasInfo, TextFont};
 use bevy::ui::{Node, RenderUiSystem, UiSystem, extract_text_sections};
-use edit::{mouse_wheel_scroll, on_drag_text_input, on_text_input_pressed, text_input_edit_system};
+use edit::{
+    clear_selection_on_focus_change, mouse_wheel_scroll, on_drag_text_input,
+    on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
+    text_input_edit_system,
+};
 use render::{extract_text_input_nodes, extract_text_input_prompts};
 use text_input_pipeline::{
     TextInputPipeline, remove_dropped_font_atlas_sets_from_text_input_pipeline,
@@ -50,6 +55,7 @@ impl Plugin for TextInputPlugin {
                         update_text_input_contents,
                         text_input_system,
                         text_input_prompt_system,
+                        clear_selection_on_focus_change.run_if(resource_changed::<InputFocus>),
                     )
                         .chain()
                         .in_set(UiSystem::PostLayout),
@@ -122,6 +128,8 @@ fn on_add_textinputnode(mut world: DeferredWorld, context: HookContext) {
     for mut observer in [
         Observer::new(on_drag_text_input),
         Observer::new(on_text_input_pressed),
+        Observer::new(on_multi_click_set_selection),
+        Observer::new(on_move_clear_multi_click),
     ] {
         observer.watch_entity(context.entity);
         world.commands().spawn(observer);
