@@ -98,6 +98,11 @@ impl Clipboard {
                 ClipboardRead::Ready(Err(ClipboardError::ClipboardNotSupported))
             }
         }
+
+        #[cfg(not(any(unix, windows, target_arch = "wasm32")))]
+        {
+            ClipboardRead::Ready(Err(ClipboardError::ClipboardNotSupported))
+        }
     }
 
     /// Places the text onto the clipboard. Any valid UTF-8 string is accepted.
@@ -136,6 +141,11 @@ impl Clipboard {
             } else {
                 Err(ClipboardError::ClipboardNotSupported)
             }
+        }
+
+        #[cfg(not(any(unix, windows, target_arch = "wasm32")))]
+        {
+            Err(ClipboardError::ClipboardNotSupported)
         }
     }
 }

@@ -1,5 +1,9 @@
 ## Changelog
 
+### 0.4.3
+* Fixed `Clipboard` `fetch_text` and `set_text` not compiling on targets without
+clipboard support. Now returns `ClipboardError::ClipboardNotSupported`.
+
 ### 0.4.0
 * Improved performance. Text input layouts should only be regenerated after edits now. 
 * The `ActiveTextInput` resource is removed. Use `InputFocus` to set the active text input.
