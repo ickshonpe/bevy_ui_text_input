@@ -31,7 +31,7 @@ fn setup(mut commands: Commands, mut active_input: ResMut<InputFocus>) {
             },
             Node {
                 width: Val::Px(100.),
-                height: Val::Px(20.),
+                height: Val::Px(24.),
                 ..default()
             },
             BackgroundColor(NAVY.into()),
