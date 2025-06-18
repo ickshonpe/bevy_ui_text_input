@@ -5,8 +5,8 @@ use bevy::{
     prelude::*,
 };
 use bevy_ui_text_input::{
-    TextInputQueue, TextInputBuffer, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
-    TextInputStyle, TextSubmitEvent, actions::TextInputAction,
+    TextInputBuffer, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
+    TextInputQueue, TextInputStyle, TextSubmitEvent, actions::TextInputAction,
 };
 
 fn main() {
