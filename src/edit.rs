@@ -192,6 +192,8 @@ pub(crate) fn on_text_input_pressed(
         x: position.x as i32 + scroll.horizontal as i32,
         y: position.y as i32,
     });
+
+    buffer.cursor_blink_time = 0.0;
 }
 
 /// Updates the scroll position of scrollable nodes in response to mouse input

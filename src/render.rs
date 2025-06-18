@@ -146,17 +146,18 @@ pub fn extract_text_input_nodes(
             });
         }
 
+        let selection = input_buffer.editor.selection_bounds();
+
         let cursor_visable = active_text_input.0.is_some_and(|active| active == entity)
             && input.is_enabled
             && input_buffer.cursor_blink_time < style.blink_interval
-            && !style.cursor_color.is_fully_transparent();
+            && !style.cursor_color.is_fully_transparent()
+            && selection.is_none();
 
         let cursor_position = input_buffer
             .editor
             .cursor_position()
             .filter(|_| cursor_visable);
-
-        let selection = input_buffer.editor.selection_bounds();
 
         for TextInputGlyph {
             position,
