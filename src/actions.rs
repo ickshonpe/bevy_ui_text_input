@@ -76,6 +76,7 @@ pub enum TextInputEdit {
     Undo,
     Redo,
     SelectAll,
+    SetSelection(Selection),
 }
 
 /// apply a single `TextInputEdit` to a text editor buffer
@@ -165,6 +166,9 @@ pub fn apply_text_input_edit(
         }
         TextInputEdit::Enter => {
             editor.action(Action::Enter);
+        }
+        TextInputEdit::SetSelection(selection) => {
+            editor.set_selection(selection);
         }
     }
 
