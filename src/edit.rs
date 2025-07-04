@@ -16,7 +16,6 @@ use bevy::ecs::event::EventReader;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::observer::Trigger;
 use bevy::ecs::system::Commands;
-use bevy::ecs::system::Local;
 use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
@@ -640,22 +639,5 @@ pub fn on_focused_keyboard_input(
                 queue.add(action);
             },
         );
-    }
-}
-
-pub fn clear_selection_on_focus_change(
-    input_focus: Res<InputFocus>,
-    mut previous_input_focus: Local<Option<Entity>>,
-    mut text_input_queues: Query<&mut TextInputQueue>,
-) {
-    if *previous_input_focus != input_focus.0 {
-        if let Some(entity) = *previous_input_focus {
-            if let Ok(mut text_input_queue) = text_input_queues.get_mut(entity) {
-                text_input_queue.add(TextInputAction::Edit(TextInputEdit::SetSelection(
-                    Selection::None,
-                )));
-            }
-        }
-        *previous_input_focus = input_focus.0;
     }
 }

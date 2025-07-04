@@ -31,9 +31,9 @@ use bevy::text::{GlyphAtlasInfo, TextFont};
 use bevy::text::{JustifyText, TextColor};
 use bevy::ui::{Node, RenderUiSystem, UiSystem, extract_text_sections};
 use edit::{
-    clear_selection_on_focus_change, cursor_blink_system, mouse_wheel_scroll, on_drag_text_input,
-    on_focused_keyboard_input, on_move_clear_multi_click, on_multi_click_set_selection,
-    on_text_input_pressed, process_text_input_queues,
+    cursor_blink_system, mouse_wheel_scroll, on_drag_text_input, on_focused_keyboard_input,
+    on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
+    process_text_input_queues,
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -63,7 +63,6 @@ impl Plugin for TextInputPlugin {
                         update_text_input_contents,
                         text_input_system,
                         text_input_prompt_system,
-                        clear_selection_on_focus_change,
                     )
                         .chain()
                         .in_set(UiSystem::PostLayout),
