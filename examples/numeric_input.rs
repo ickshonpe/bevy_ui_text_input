@@ -1,7 +1,7 @@
 //! minimal text input example
 
 use bevy::{color::palettes::css::NAVY, prelude::*};
-use bevy_ui_text_input::{TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin};
+use bevy_ui_text_input::{TextInputMode, TextInputNode, TextInputPlugin};
 
 fn main() {
     App::new()
@@ -18,7 +18,7 @@ fn setup(mut commands: Commands) {
         .spawn((
             TextInputNode {
                 mode: TextInputMode::SingleLine,
-                filter: Some(TextInputFilter::Integer),
+                filter: Some(regex::Regex::new(r"^-?$|^-?\d+$").unwrap()),
                 max_chars: Some(5),
                 ..Default::default()
             },

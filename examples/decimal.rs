@@ -2,7 +2,7 @@
 
 use bevy::{color::palettes::css::NAVY, input_focus::InputFocus, prelude::*};
 use bevy_ui_text_input::{
-    TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin, TextSubmitEvent,
+    TextInputMode, TextInputNode, TextInputPlugin, TextSubmitEvent,
 };
 
 fn main() {
@@ -21,7 +21,7 @@ fn setup(mut commands: Commands, mut active_input: ResMut<InputFocus>) {
         .spawn((
             TextInputNode {
                 mode: TextInputMode::SingleLine,
-                filter: Some(TextInputFilter::Decimal),
+                filter: Some(regex::Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap()),
                 max_chars: Some(10),
                 ..Default::default()
             },

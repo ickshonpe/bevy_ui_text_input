@@ -5,7 +5,6 @@ use bevy::text::cosmic_text::Editor;
 use bevy::text::cosmic_text::Motion;
 use bevy::text::cosmic_text::Selection;
 
-use crate::TextInputFilter;
 use crate::clipboard::ClipboardRead;
 use crate::edit::apply_action;
 use crate::edit::apply_motion;
@@ -84,7 +83,7 @@ pub fn apply_text_input_edit(
     editor: &mut BorrowedWithFontSystem<'_, Editor<'static>>,
     changes: &mut cosmic_undo_2::Commands<bevy::text::cosmic_text::Change>,
     max_chars: Option<usize>,
-    filter_mode: &Option<TextInputFilter>,
+    filter_mode: &Option<regex::Regex>,
 ) {
     editor.start_change();
 

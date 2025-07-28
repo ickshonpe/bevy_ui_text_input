@@ -7,7 +7,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_ui_text_input::{
-    TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
+    TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
     TextSubmitEvent,
 };
 
@@ -30,9 +30,9 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
 
     let filters = [
         (None, "text"),
-        (Some(TextInputFilter::Integer), "integer"),
-        (Some(TextInputFilter::Decimal), "decimal"),
-        (Some(TextInputFilter::Hex), "hex"),
+        (Some(regex::Regex::new(r"^-?$|^-?\d+$").unwrap()), "integer"),
+        (Some(regex::Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap()), "decimal"),
+        (Some(regex::Regex::new(r"^[a-fA-F\d]*$").unwrap()), "hex")
     ];
 
     commands
