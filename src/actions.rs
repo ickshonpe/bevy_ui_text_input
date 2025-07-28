@@ -10,6 +10,7 @@ use crate::edit::apply_action;
 use crate::edit::apply_motion;
 use crate::edit::buffer_len;
 use crate::edit::cursor_at_line_end;
+use crate::TextInputFilter;
 
 /// Actions that can be recieved by a text input
 #[derive(Debug)]
@@ -83,7 +84,7 @@ pub fn apply_text_input_edit(
     editor: &mut BorrowedWithFontSystem<'_, Editor<'static>>,
     changes: &mut cosmic_undo_2::Commands<bevy::text::cosmic_text::Change>,
     max_chars: Option<usize>,
-    filter_mode: &Option<&'static regex::Regex>,
+    filter_mode: Option<&mut dyn TextInputFilter>
 ) {
     editor.start_change();
 
@@ -177,7 +178,7 @@ pub fn apply_text_input_edit(
 
     if let Some(filter_mode) = filter_mode {
         let text = editor.with_buffer(crate::get_text);
-        if !filter_mode.is_match(&text) {
+        if !filter_mode(text.as_str()) {
             change.reverse();
             editor.apply_change(&change);
             return;

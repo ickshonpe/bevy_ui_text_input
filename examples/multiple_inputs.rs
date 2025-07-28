@@ -7,8 +7,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_ui_text_input::{
-    TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
-    TextSubmitEvent,
+    TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt, TextSubmitEvent
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -34,11 +33,11 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
 
     let mut map = InputMap::default();
 
-    let filters = [
+    let filters: [(Option<Box<dyn TextInputFilter>>, &str); 4] = [
         (None, "text"),
-        (Some(&*DECIMAL_REGEX), "integer"),
-        (Some(&*NUMBER_REGEX), "decimal"),
-        (Some(&*HEX_REGEX), "hex")
+        (Some(Box::new(|text| DECIMAL_REGEX.is_match(text))), "integer"),
+        (Some(Box::new(|text| NUMBER_REGEX.is_match(text))), "decimal"),
+        (Some(Box::new(|text| HEX_REGEX.is_match(text))), "hex")
     ];
 
     commands

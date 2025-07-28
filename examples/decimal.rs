@@ -25,7 +25,7 @@ fn setup(mut commands: Commands, mut active_input: ResMut<InputFocus>) {
         .spawn((
             TextInputNode {
                 mode: TextInputMode::SingleLine,
-                filter: Some(&*FILTER_REGEX),
+                filter: Some(Box::new(|text| FILTER_REGEX.is_match(text))),
                 max_chars: Some(10),
                 ..Default::default()
             },

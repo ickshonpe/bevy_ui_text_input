@@ -22,7 +22,7 @@ fn setup(mut commands: Commands) {
         .spawn((
             TextInputNode {
                 mode: TextInputMode::SingleLine,
-                filter: Some(&*FILTER_REGEX),
+                filter: Some(Box::new(|text| FILTER_REGEX.is_match(text))),
                 max_chars: Some(5),
                 ..Default::default()
             },

@@ -35,7 +35,6 @@ use edit::{
     on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
     process_text_input_queues,
 };
-use regex::Regex;
 use render::{extract_text_input_nodes, extract_text_input_prompts};
 use text_input_pipeline::{
     TextInputPipeline, remove_dropped_font_atlas_sets_from_text_input_pipeline,
@@ -82,6 +81,14 @@ impl Plugin for TextInputPlugin {
     }
 }
 
+pub trait TextInputFilter: FnMut(&str) -> bool + Send + Sync + 'static {}
+impl<T> TextInputFilter for T where T: FnMut(&str) -> bool + Send + Sync + 'static {}
+impl std::fmt::Debug for dyn TextInputFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         f.write_str("TextInputFilter closure")
+    }
+}
+
 #[derive(Component, Debug)]
 #[require(
     Node,
@@ -103,7 +110,7 @@ pub struct TextInputNode {
     /// Type of text input
     pub mode: TextInputMode,
     /// Optional filter for the text input
-    pub filter: Option<&'static Regex>,
+    pub filter: Option<Box<dyn TextInputFilter>>,
     /// Maximum number of characters that can entered into the input buffer
     pub max_chars: Option<usize>,
     /// Should overwrite mode be available
