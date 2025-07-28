@@ -35,8 +35,6 @@ use edit::{
     on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
     process_text_input_queues,
 };
-use once_cell::sync::Lazy;
-use regex::Regex;
 use render::{extract_text_input_nodes, extract_text_input_prompts};
 use text_input_pipeline::{
     TextInputPipeline, remove_dropped_font_atlas_sets_from_text_input_pipeline,
@@ -83,6 +81,14 @@ impl Plugin for TextInputPlugin {
     }
 }
 
+pub trait TextInputFilter: FnMut(&str) -> bool + Send + Sync + 'static {}
+impl<T> TextInputFilter for T where T: FnMut(&str) -> bool + Send + Sync + 'static {}
+impl std::fmt::Debug for dyn TextInputFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         f.write_str("TextInputFilter closure")
+    }
+}
+
 #[derive(Component, Debug)]
 #[require(
     Node,
@@ -104,7 +110,7 @@ pub struct TextInputNode {
     /// Type of text input
     pub mode: TextInputMode,
     /// Optional filter for the text input
-    pub filter: Option<TextInputFilter>,
+    pub filter: Option<Box<dyn TextInputFilter>>,
     /// Maximum number of characters that can entered into the input buffer
     pub max_chars: Option<usize>,
     /// Should overwrite mode be available
@@ -174,60 +180,6 @@ pub enum TextInputMode {
     /// Scrolls horizontally
     /// Submit on enter
     SingleLine,
-}
-
-/// Filter for text input
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum TextInputFilter {
-    /// Integer input
-    /// accepts only digits and a leading sign
-    Integer,
-    /// Decimal input
-    /// accepts only digits, a decimal point and a leading sign
-    Decimal,
-    /// Hexadecimal input
-    /// accepts only `0-9`, `a-f` and `A-F`
-    Hex,
-}
-
-static INTEGER_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d+$").unwrap());
-static DECIMAL_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap());
-
-impl TextInputFilter {
-    pub fn regex(&self) -> Option<&regex::Regex> {
-        match self {
-            TextInputFilter::Integer => Some(&INTEGER_REGEX),
-            TextInputFilter::Decimal => Some(&DECIMAL_REGEX),
-            TextInputFilter::Hex => None,
-        }
-    }
-
-    fn is_match_char(&self, ch: char) -> bool {
-        match self {
-            TextInputFilter::Integer => {
-                // Allow only numeric characters
-                ch.is_ascii_digit() || ch == '-'
-            }
-            TextInputFilter::Hex => {
-                // Allow hexadecimal characters (0-9, a-f, A-F)
-                ch.is_ascii_hexdigit()
-            }
-            TextInputFilter::Decimal => {
-                // Allow numeric characters and a single decimal point
-                ch.is_ascii_digit() || ch == '.' || ch == '-'
-            }
-        }
-    }
-
-    fn is_match(self, text: &str) -> bool {
-        if let Some(regex) = self.regex() {
-            // If a regex is defined, use it to validate the entire text
-            regex.is_match(text)
-        } else {
-            // Otherwise, check each character against the filter
-            text.chars().all(|ch| self.is_match_char(ch))
-        }
-    }
 }
 
 impl Default for TextInputMode {

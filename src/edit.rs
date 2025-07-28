@@ -542,7 +542,7 @@ pub fn cursor_blink_system(
 pub fn process_text_input_queues(
     mut query: Query<(
         Entity,
-        &TextInputNode,
+        &mut TextInputNode,
         &mut TextInputBuffer,
         &mut TextInputQueue,
     )>,
@@ -552,7 +552,7 @@ pub fn process_text_input_queues(
 ) {
     let mut font_system = &mut text_input_pipeline.font_system;
 
-    for (entity, node, mut buffer, mut actions_queue) in query.iter_mut() {
+    for (entity, mut node, mut buffer, mut actions_queue) in query.iter_mut() {
         let TextInputBuffer {
             editor, changes, ..
         } = &mut *buffer;
@@ -575,7 +575,7 @@ pub fn process_text_input_queues(
                             &mut editor,
                             changes,
                             node.max_chars,
-                            &node.filter,
+                            node.filter.as_deref_mut(),
                         );
                     }
                 }
@@ -595,7 +595,7 @@ pub fn process_text_input_queues(
                                 &mut editor,
                                 changes,
                                 node.max_chars,
-                                &node.filter,
+                                node.filter.as_deref_mut(),
                             );
                         }
                     } else {
@@ -610,7 +610,7 @@ pub fn process_text_input_queues(
                         &mut editor,
                         changes,
                         node.max_chars,
-                        &node.filter,
+                        node.filter.as_deref_mut(),
                     );
                 }
             }

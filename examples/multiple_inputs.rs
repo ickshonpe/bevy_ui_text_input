@@ -7,9 +7,14 @@ use bevy::{
     prelude::*,
 };
 use bevy_ui_text_input::{
-    TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
-    TextSubmitEvent,
+    TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt, TextSubmitEvent
 };
+use once_cell::sync::Lazy;
+use regex::Regex;
+
+static DECIMAL_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap());
+static NUMBER_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d+$").unwrap());
+static HEX_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-fA-F\d]*$").unwrap());
 
 fn main() {
     App::new()
@@ -28,11 +33,11 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
 
     let mut map = InputMap::default();
 
-    let filters = [
+    let filters: [(Option<Box<dyn TextInputFilter>>, &str); 4] = [
         (None, "text"),
-        (Some(TextInputFilter::Integer), "integer"),
-        (Some(TextInputFilter::Decimal), "decimal"),
-        (Some(TextInputFilter::Hex), "hex"),
+        (Some(Box::new(|text| DECIMAL_REGEX.is_match(text))), "integer"),
+        (Some(Box::new(|text| NUMBER_REGEX.is_match(text))), "decimal"),
+        (Some(Box::new(|text| HEX_REGEX.is_match(text))), "hex")
     ];
 
     commands

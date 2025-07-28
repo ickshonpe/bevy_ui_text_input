@@ -2,8 +2,12 @@
 
 use bevy::{color::palettes::css::NAVY, input_focus::InputFocus, prelude::*};
 use bevy_ui_text_input::{
-    TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin, TextSubmitEvent,
+    TextInputMode, TextInputNode, TextInputPlugin, TextSubmitEvent,
 };
+use once_cell::sync::Lazy;
+use regex::Regex;
+
+static FILTER_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap());
 
 fn main() {
     App::new()
@@ -21,7 +25,7 @@ fn setup(mut commands: Commands, mut active_input: ResMut<InputFocus>) {
         .spawn((
             TextInputNode {
                 mode: TextInputMode::SingleLine,
-                filter: Some(TextInputFilter::Decimal),
+                filter: Some(Box::new(|text| FILTER_REGEX.is_match(text))),
                 max_chars: Some(10),
                 ..Default::default()
             },
