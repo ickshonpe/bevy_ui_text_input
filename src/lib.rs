@@ -35,8 +35,6 @@ use edit::{
     on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
     process_text_input_queues,
 };
-use once_cell::sync::Lazy;
-use regex::Regex;
 use render::{extract_text_input_nodes, extract_text_input_prompts};
 use text_input_pipeline::{
     TextInputPipeline, remove_dropped_font_atlas_sets_from_text_input_pipeline,
@@ -188,45 +186,102 @@ pub enum TextInputFilter {
     /// Hexadecimal input
     /// accepts only `0-9`, `a-f` and `A-F`
     Hex,
+    /// A predicate function to check whether
+    /// check whether or not an input character
+    /// should be allowed
+    Other(TextInputFilterPredicate),
 }
 
-static INTEGER_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d+$").unwrap());
-static DECIMAL_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap());
+/// A predicate function to filter text input.
+///
+/// This function is given the entire input string and
+/// should return whether the most recent character type should
+/// be allowed to be inserted.
+pub type TextInputFilterPredicate = fn(&str) -> bool;
 
 impl TextInputFilter {
-    pub fn regex(&self) -> Option<&regex::Regex> {
-        match self {
-            TextInputFilter::Integer => Some(&INTEGER_REGEX),
-            TextInputFilter::Decimal => Some(&DECIMAL_REGEX),
-            TextInputFilter::Hex => None,
-        }
-    }
-
-    fn is_match_char(&self, ch: char) -> bool {
+    /// Returns true if the input matches the filter.
+    /// Empty strings will pass the filters.
+    pub fn is_match(self, text: &str) -> bool {
         match self {
             TextInputFilter::Integer => {
-                // Allow only numeric characters
-                ch.is_ascii_digit() || ch == '-'
+                let mut chars = text.chars();
+
+                // discard leading minus sign
+                if text.starts_with("-") {
+                    chars.next();
+                }
+
+                // ensure the rest are valid
+                chars.all(|ch| ch.is_ascii_digit())
             }
             TextInputFilter::Hex => {
-                // Allow hexadecimal characters (0-9, a-f, A-F)
-                ch.is_ascii_hexdigit()
+                // check each character against the filter
+                text.chars().all(|ch| ch.is_ascii_hexdigit())
             }
             TextInputFilter::Decimal => {
-                // Allow numeric characters and a single decimal point
-                ch.is_ascii_digit() || ch == '.' || ch == '-'
+                let mut chars = text.chars();
+
+                // discard leading minus sign
+                if text.starts_with("-") {
+                    chars.next();
+                }
+
+                // we only have 1 period
+                let period_count = text.matches('.').count();
+
+                // ensure the rest are valid
+                // Otherwise, check each character against the filter
+                period_count <= 1 && chars.all(|ch| ch.is_ascii_digit() || ch == '.')
             }
+            TextInputFilter::Other(func) => func(text),
         }
     }
+}
 
-    fn is_match(self, text: &str) -> bool {
-        if let Some(regex) = self.regex() {
-            // If a regex is defined, use it to validate the entire text
-            regex.is_match(text)
-        } else {
-            // Otherwise, check each character against the filter
-            text.chars().all(|ch| self.is_match_char(ch))
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_match_integer() {
+        assert!(TextInputFilter::Integer.is_match(""));
+        assert!(TextInputFilter::Integer.is_match("-"));
+        assert!(TextInputFilter::Integer.is_match("-1"));
+        assert!(TextInputFilter::Integer.is_match("-11919"));
+        assert!(TextInputFilter::Integer.is_match("11919"));
+        assert!(TextInputFilter::Integer.is_match("1"));
+        assert!(!TextInputFilter::Integer.is_match("1-"));
+        assert!(!TextInputFilter::Integer.is_match("--1"));
+        assert!(!TextInputFilter::Integer.is_match("-11-1"));
+    }
+
+    #[test]
+    fn is_match_digit() {
+        assert!(TextInputFilter::Decimal.is_match(""));
+        assert!(TextInputFilter::Decimal.is_match("-"));
+        assert!(TextInputFilter::Decimal.is_match("-1"));
+        assert!(TextInputFilter::Decimal.is_match("-11919"));
+        assert!(TextInputFilter::Decimal.is_match("11919"));
+        assert!(TextInputFilter::Decimal.is_match("1"));
+        assert!(!TextInputFilter::Decimal.is_match("1-"));
+        assert!(!TextInputFilter::Decimal.is_match("--1"));
+        assert!(!TextInputFilter::Decimal.is_match("-11-1"));
+        assert!(!TextInputFilter::Decimal.is_match(".."));
+        assert!(!TextInputFilter::Decimal.is_match("-.."));
+        assert!(!TextInputFilter::Decimal.is_match("1.."));
+        assert!(TextInputFilter::Decimal.is_match("."));
+        assert!(TextInputFilter::Decimal.is_match("-."));
+        assert!(TextInputFilter::Decimal.is_match("-1."));
+        assert!(TextInputFilter::Decimal.is_match("-.1"));
+        assert!(TextInputFilter::Decimal.is_match("-.11919"));
+        assert!(TextInputFilter::Decimal.is_match("-119.19"));
+        assert!(TextInputFilter::Decimal.is_match("-119."));
+        assert!(TextInputFilter::Decimal.is_match("11919"));
+        assert!(TextInputFilter::Decimal.is_match("1"));
+        assert!(!TextInputFilter::Decimal.is_match("1-"));
+        assert!(!TextInputFilter::Decimal.is_match("--1"));
+        assert!(!TextInputFilter::Decimal.is_match("-11-1"));
     }
 }
 
