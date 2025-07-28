@@ -186,28 +186,20 @@ pub enum TextInputFilter {
     /// Hexadecimal input
     /// accepts only `0-9`, `a-f` and `A-F`
     Hex,
+    /// A predicate function to check whether
+    /// check whether or not an input character
+    /// should be allowed
+    Other(TextInputFilterPredicate),
 }
 
+/// A predicate function to filter text input.
+///
+/// This function is given the entire input string and
+/// should return whether the most recent character type should
+/// be allowed to be inserted.
+pub type TextInputFilterPredicate = fn(&str) -> bool;
 
 impl TextInputFilter {
-    /// Checks if it is a valid digit, besides for the potential '-' sign.
-    fn is_match_char(&self, ch: char) -> bool {
-        match self {
-            TextInputFilter::Integer => {
-                // Allow only numeric characters
-                ch.is_ascii_digit()
-            }
-            TextInputFilter::Hex => {
-                // Allow hexadecimal characters (0-9, a-f, A-F)
-                ch.is_ascii_hexdigit()
-            }
-            TextInputFilter::Decimal => {
-                // Allow numeric characters and a single decimal point
-                ch.is_ascii_digit() || ch == '.'
-            }
-        }
-    }
-
     /// Returns true if the input matches the filter.
     /// Empty strings will pass the filters.
     pub fn is_match(self, text: &str) -> bool {
@@ -221,12 +213,12 @@ impl TextInputFilter {
                 }
 
                 // ensure the rest are valid
-                chars.all(|ch| self.is_match_char(ch))
-            },
+                chars.all(|ch| ch.is_ascii_digit())
+            }
             TextInputFilter::Hex => {
                 // check each character against the filter
-                text.chars().all(|ch| self.is_match_char(ch))
-            },
+                text.chars().all(|ch| ch.is_ascii_hexdigit())
+            }
             TextInputFilter::Decimal => {
                 let mut chars = text.chars();
 
@@ -240,8 +232,9 @@ impl TextInputFilter {
 
                 // ensure the rest are valid
                 // Otherwise, check each character against the filter
-                period_count <= 1 && chars.all(|ch| self.is_match_char(ch))
-            },
+                period_count <= 1 && chars.all(|ch| ch.is_ascii_digit() || ch == '.')
+            }
+            TextInputFilter::Other(func) => func(text),
         }
     }
 }
