@@ -10,6 +10,12 @@ use bevy_ui_text_input::{
     TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
     TextSubmitEvent,
 };
+use once_cell::sync::Lazy;
+use regex::Regex;
+
+static DECIMAL_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap());
+static NUMBER_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d+$").unwrap());
+static HEX_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-fA-F\d]*$").unwrap());
 
 fn main() {
     App::new()
@@ -30,9 +36,9 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
 
     let filters = [
         (None, "text"),
-        (Some(regex::Regex::new(r"^-?$|^-?\d+$").unwrap()), "integer"),
-        (Some(regex::Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap()), "decimal"),
-        (Some(regex::Regex::new(r"^[a-fA-F\d]*$").unwrap()), "hex")
+        (Some(&*DECIMAL_REGEX), "integer"),
+        (Some(&*NUMBER_REGEX), "decimal"),
+        (Some(&*HEX_REGEX), "hex")
     ];
 
     commands

@@ -4,6 +4,10 @@ use bevy::{color::palettes::css::NAVY, input_focus::InputFocus, prelude::*};
 use bevy_ui_text_input::{
     TextInputMode, TextInputNode, TextInputPlugin, TextSubmitEvent,
 };
+use once_cell::sync::Lazy;
+use regex::Regex;
+
+static FILTER_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap());
 
 fn main() {
     App::new()
@@ -21,7 +25,7 @@ fn setup(mut commands: Commands, mut active_input: ResMut<InputFocus>) {
         .spawn((
             TextInputNode {
                 mode: TextInputMode::SingleLine,
-                filter: Some(regex::Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap()),
+                filter: Some(&*FILTER_REGEX),
                 max_chars: Some(10),
                 ..Default::default()
             },

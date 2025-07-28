@@ -103,7 +103,7 @@ pub struct TextInputNode {
     /// Type of text input
     pub mode: TextInputMode,
     /// Optional filter for the text input
-    pub filter: Option<Regex>,
+    pub filter: Option<&'static Regex>,
     /// Maximum number of characters that can entered into the input buffer
     pub max_chars: Option<usize>,
     /// Should overwrite mode be available

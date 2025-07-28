@@ -83,7 +83,7 @@ pub fn apply_text_input_edit(
     editor: &mut BorrowedWithFontSystem<'_, Editor<'static>>,
     changes: &mut cosmic_undo_2::Commands<bevy::text::cosmic_text::Change>,
     max_chars: Option<usize>,
-    filter_mode: &Option<regex::Regex>,
+    filter_mode: &Option<&'static regex::Regex>,
 ) {
     editor.start_change();
 
