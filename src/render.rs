@@ -30,11 +30,13 @@ use bevy::text::TextColor;
 use bevy::transform::components::GlobalTransform;
 use bevy::ui::CalculatedClip;
 use bevy::ui::ComputedNode;
+use bevy::ui::ComputedUiTargetCamera;
 use bevy::ui::ResolvedBorderRadius;
 use bevy::ui_render::ExtractedGlyph;
 use bevy::ui_render::ExtractedUiItem;
 use bevy::ui_render::ExtractedUiNode;
 use bevy::ui_render::ExtractedUiNodes;
+use bevy::ui_render::NodeType;
 use bevy::ui_render::UiCameraMap;
 use cosmic_text::Edit;
 
@@ -99,7 +101,7 @@ pub fn extract_text_input_nodes(
             .with_buffer(|buffer| Vec2::new(buffer.scroll().horizontal, 0.)); // buffer.scroll().vertical));
 
         let transform = global_transform.affine()
-            * bevy::math::Affine3A::from_translation((-0.5 * uinode.size() - scroll).extend(0.));
+            * bevy::math::Affine3A::from_translation((uinode.size() * -0.5 - scroll).extend(0.));
 
         let node_rect = Rect::from_center_size(
             global_transform.translation().truncate(),
@@ -122,23 +124,23 @@ pub fn extract_text_input_nodes(
                 rect.size()
             } + 2. * Vec2::X;
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index: uinode.stack_index(),
-                color: LinearRgba::from(style.selection_color),
+                stack_index: uinode.stack_index,
                 image: AssetId::default(),
                 clip,
                 extracted_camera_entity,
-                rect: Rect {
-                    min: Vec2::ZERO,
-                    max: size,
-                },
+                transform: transform * Mat4::from_translation(rect.center().extend(0.)),
                 item: ExtractedUiItem::Node {
+                    color: LinearRgba::from(style.selection_color),
                     atlas_scaling: None,
                     flip_x: false,
                     flip_y: false,
                     border_radius: ResolvedBorderRadius::ZERO,
                     border: BorderRect::ZERO,
                     node_type: NodeType::Rect,
-                    transform: transform * Mat4::from_translation(rect.center().extend(0.)),
+                    rect: Rect {
+                        min: Vec2::ZERO,
+                        max: size,
+                    },
                 },
                 main_entity: entity.into(),
                 render_entity: commands.spawn(TemporaryRenderEntity).id(),
@@ -167,8 +169,8 @@ pub fn extract_text_input_nodes(
         } in text_layout_info.glyphs.iter()
         {
             let color_out = if let Some((s0, s1)) = selection {
-                if (s0.line < *line_index || (*line_index == s0.line && s0.index <= *byte_index))
-                    && (*line_index < s1.line || (*line_index == s1.line && *byte_index < s1.index))
+                if (s0.line < line_index || (line_index == s0.line && s0.index <= byte_index))
+                    && (line_index < s1.line || (line_index == s1.line && byte_index < s1.index))
                 {
                     selection_color
                 } else {
@@ -186,12 +188,14 @@ pub fn extract_text_input_nodes(
             };
 
             extracted_uinodes.glyphs.push(ExtractedGlyph {
-                transform: transform * Mat4::from_translation(position.extend(0.)),
+                translation: (transform * Mat4::from_translation(position.extend(0.)))
+                    .w_axis
+                    .xyz(),
                 rect,
             });
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index: uinode.stack_index(),
+                stack_index: uinode.stack_index,
                 color: color_out,
                 image: atlas_info.texture,
                 clip,
@@ -216,28 +220,24 @@ pub fn extract_text_input_nodes(
             let width = style.cursor_width * scale_factor;
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index: uinode.stack_index(),
-                color,
+                stack_index: uinode.stack_index,
                 image: AssetId::default(),
                 clip,
                 extracted_camera_entity,
-                rect: Rect {
-                    min: Vec2::ZERO,
-                    max: Vec2::new(width, cursor_height),
-                },
+                transform: transform
+                    * Mat4::from_translation(Vec3::new(x + 0.5 * width, y + 0.5 * line_height, 0.)),
                 item: ExtractedUiItem::Node {
+                    color,
                     atlas_scaling: None,
                     flip_x: false,
                     flip_y: false,
                     border_radius: ResolvedBorderRadius::ZERO,
                     border: BorderRect::ZERO,
                     node_type: NodeType::Rect,
-                    transform: transform
-                        * Mat4::from_translation(Vec3::new(
-                            x + 0.5 * width,
-                            y + 0.5 * line_height,
-                            0.,
-                        )),
+                    rect: Rect {
+                        min: Vec2::ZERO,
+                        max: Vec2::new(width, cursor_height),
+                    },
                 },
                 main_entity: entity.into(),
                 render_entity: commands.spawn(TemporaryRenderEntity).id(),
@@ -257,7 +257,7 @@ pub fn extract_text_input_prompts(
             &GlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
-            &ComputedNodeTarget,
+            &ComputedUiTargetCamera,
             &TextInputPromptLayoutInfo,
             &TextColor,
             &TextInputBuffer,
