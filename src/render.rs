@@ -327,7 +327,7 @@ pub fn extract_text_input_prompts(
             extracted_uinodes.glyphs.push(ExtractedGlyph {
                 translation: (transform * Mat4::from_translation(position.extend(0.)))
                     .w_axis
-                    .xyz(),
+                    .xz(),
                 rect,
             });
             extracted_uinodes.uinodes.push(ExtractedUiNode {
