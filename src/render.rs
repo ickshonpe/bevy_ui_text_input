@@ -22,7 +22,6 @@ use bevy::math::Mat4;
 use bevy::math::Rect;
 use bevy::math::Vec2;
 use bevy::math::Vec3;
-use bevy::math::Vec4Swizzles;
 use bevy::render::Extract;
 use bevy::render::sync_world::TemporaryRenderEntity;
 use bevy::sprite::BorderRect;
@@ -52,7 +51,7 @@ pub fn extract_text_input_nodes(
             &GlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
-            &ComputedNodeTarget,
+            &ComputedUiTargetCamera,
             &TextInputLayoutInfo,
             &TextColor,
             &TextInputStyle,
@@ -169,8 +168,8 @@ pub fn extract_text_input_nodes(
         } in text_layout_info.glyphs.iter()
         {
             let color_out = if let Some((s0, s1)) = selection {
-                if (s0.line < line_index || (line_index == s0.line && s0.index <= byte_index))
-                    && (line_index < s1.line || (line_index == s1.line && byte_index < s1.index))
+                if (s0.line < *line_index || (*line_index == s0.line && s0.index <= *byte_index))
+                    && (*line_index < s1.line || (*line_index == s1.line && *byte_index < s1.index))
                 {
                     selection_color
                 } else {
@@ -188,9 +187,7 @@ pub fn extract_text_input_nodes(
             };
 
             extracted_uinodes.glyphs.push(ExtractedGlyph {
-                translation: (transform * Mat4::from_translation(position.extend(0.)))
-                    .w_axis
-                    .xyz(),
+                translation: (transform * Mat4::from_translation(position.extend(0.))),
                 rect,
             });
 
@@ -224,8 +221,12 @@ pub fn extract_text_input_nodes(
                 image: AssetId::default(),
                 clip,
                 extracted_camera_entity,
-                transform: transform
-                    * Mat4::from_translation(Vec3::new(x + 0.5 * width, y + 0.5 * line_height, 0.)),
+                transform: (transform
+                    * Mat4::from_translation(Vec3::new(
+                        x + 0.5 * width,
+                        y + 0.5 * line_height,
+                        0.,
+                    ))),
                 item: ExtractedUiItem::Node {
                     color,
                     atlas_scaling: None,
@@ -325,9 +326,7 @@ pub fn extract_text_input_prompts(
                 .textures[atlas_info.location.glyph_index]
                 .as_rect();
             extracted_uinodes.glyphs.push(ExtractedGlyph {
-                translation: (transform * Mat4::from_translation(position.extend(0.)))
-                    .w_axis
-                    .xz(),
+                translation: (transform * Mat4::from_translation(position.extend(0.))),
                 rect,
             });
             extracted_uinodes.uinodes.push(ExtractedUiNode {
