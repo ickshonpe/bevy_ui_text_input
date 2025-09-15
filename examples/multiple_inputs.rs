@@ -95,7 +95,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
 
 fn update(
     input_focus: Res<InputFocus>,
-    mut events: EventReader<TextSubmitEvent>,
+    mut events: MessageReader<TextSubmitEvent>,
     map: Res<InputMap>,
     mut text_query: Query<&mut Text>,
     mut outline_query: Query<(Entity, &mut Outline)>,

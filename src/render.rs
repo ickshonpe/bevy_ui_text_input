@@ -8,6 +8,7 @@ use crate::TextInputStyle;
 use crate::edit::is_buffer_empty;
 use bevy::asset::AssetId;
 use bevy::asset::Assets;
+use bevy::camera::visibility::InheritedVisibility;
 use bevy::color::Alpha;
 use bevy::color::LinearRgba;
 use bevy::ecs::entity::Entity;
@@ -21,23 +22,21 @@ use bevy::math::Mat4;
 use bevy::math::Rect;
 use bevy::math::Vec2;
 use bevy::math::Vec3;
+use bevy::math::Vec4Swizzles;
 use bevy::render::Extract;
 use bevy::render::sync_world::TemporaryRenderEntity;
-use bevy::render::view::InheritedVisibility;
 use bevy::sprite::BorderRect;
 use bevy::text::TextColor;
-use bevy::text::cosmic_text::Edit;
 use bevy::transform::components::GlobalTransform;
 use bevy::ui::CalculatedClip;
 use bevy::ui::ComputedNode;
-use bevy::ui::ComputedNodeTarget;
-use bevy::ui::ExtractedGlyph;
-use bevy::ui::ExtractedUiItem;
-use bevy::ui::ExtractedUiNode;
-use bevy::ui::ExtractedUiNodes;
-use bevy::ui::NodeType;
 use bevy::ui::ResolvedBorderRadius;
-use bevy::ui::UiCameraMap;
+use bevy::ui_render::ExtractedGlyph;
+use bevy::ui_render::ExtractedUiItem;
+use bevy::ui_render::ExtractedUiNode;
+use bevy::ui_render::ExtractedUiNodes;
+use bevy::ui_render::UiCameraMap;
+use cosmic_text::Edit;
 
 pub fn extract_text_input_nodes(
     mut commands: Commands,
@@ -180,7 +179,7 @@ pub fn extract_text_input_nodes(
             };
 
             let Some(rect) = texture_atlases
-                .get(&atlas_info.texture_atlas)
+                .get(atlas_info.texture_atlas)
                 .map(|atlas| atlas.textures[atlas_info.location.glyph_index].as_rect())
             else {
                 continue;
@@ -194,7 +193,7 @@ pub fn extract_text_input_nodes(
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index: uinode.stack_index(),
                 color: color_out,
-                image: atlas_info.texture.id(),
+                image: atlas_info.texture,
                 clip,
                 rect,
                 extracted_camera_entity,
@@ -321,18 +320,20 @@ pub fn extract_text_input_prompts(
         } in text_layout_info.glyphs.iter()
         {
             let rect = texture_atlases
-                .get(&atlas_info.texture_atlas)
+                .get(atlas_info.texture_atlas)
                 .unwrap()
                 .textures[atlas_info.location.glyph_index]
                 .as_rect();
             extracted_uinodes.glyphs.push(ExtractedGlyph {
-                transform: transform * Mat4::from_translation(position.extend(0.)),
+                translation: (transform * Mat4::from_translation(position.extend(0.)))
+                    .w_axis
+                    .xyz(),
                 rect,
             });
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 stack_index: uinode.stack_index(),
                 color,
-                image: atlas_info.texture.id(),
+                image: atlas_info.texture,
                 clip,
                 rect,
                 item: ExtractedUiItem::Glyphs { range: start..end },

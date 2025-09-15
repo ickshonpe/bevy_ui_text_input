@@ -8,7 +8,7 @@ use bevy::asset::AssetEvent;
 use bevy::asset::AssetId;
 use bevy::asset::Assets;
 use bevy::ecs::change_detection::DetectChanges;
-use bevy::ecs::event::EventReader;
+use bevy::ecs::message::MessageReader;
 use bevy::ecs::resource::Resource;
 use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
@@ -29,11 +29,11 @@ use bevy::text::TextBounds;
 use bevy::text::TextError;
 use bevy::text::TextFont;
 use bevy::text::YAxisOrientation;
-use bevy::text::cosmic_text;
-use bevy::text::cosmic_text::Buffer;
-use bevy::text::cosmic_text::Edit;
-use bevy::text::cosmic_text::Metrics;
 use bevy::ui::ComputedNode;
+use cosmic_text;
+use cosmic_text::Buffer;
+use cosmic_text::Edit;
+use cosmic_text::Metrics;
 use std::sync::Arc;
 
 #[derive(Resource)]
@@ -170,7 +170,7 @@ pub fn text_input_system(
                     .metrics(metrics);
 
                 let text = crate::get_text(buffer);
-                buffer.set_text(font_system, &text, attrs, cosmic_text::Shaping::Advanced);
+                buffer.set_text(font_system, &text, &attrs, cosmic_text::Shaping::Advanced);
                 let align = Some(input.justification.into());
                 for buffer_line in buffer.lines.iter_mut() {
                     buffer_line.set_align(align);
@@ -269,7 +269,7 @@ pub fn text_input_system(
                                 })?;
 
                             let texture_atlas =
-                                texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+                                texture_atlases.get(atlas_info.texture_atlas).unwrap();
                             let location = atlas_info.location;
                             let glyph_rect = texture_atlas.textures[location.glyph_index];
                             let left = location.offset.x as f32;
@@ -420,7 +420,7 @@ pub fn text_input_prompt_system(
             buffer.set_text(
                 font_system,
                 &prompt.text,
-                attrs,
+                &attrs,
                 cosmic_text::Shaping::Advanced,
             );
 
@@ -484,7 +484,7 @@ pub fn text_input_prompt_system(
                                 )
                             })?;
 
-                        let texture_atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+                        let texture_atlas = texture_atlases.get(atlas_info.texture_atlas).unwrap();
                         let location = atlas_info.location;
                         let glyph_rect = texture_atlas.textures[location.glyph_index];
                         let left = location.offset.x as f32;
@@ -539,7 +539,7 @@ pub fn text_input_prompt_system(
 
 pub fn remove_dropped_font_atlas_sets_from_text_input_pipeline(
     mut text_input_pipeline: ResMut<TextInputPipeline>,
-    mut font_events: EventReader<AssetEvent<Font>>,
+    mut font_events: MessageReader<AssetEvent<Font>>,
 ) {
     for event in font_events.read() {
         if let AssetEvent::Removed { id } = event {
