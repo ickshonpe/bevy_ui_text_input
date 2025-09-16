@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
@@ -84,7 +84,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: ci
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Install build dependencies
         if: steps.cache.outputs.cache-hit != 'true'
@@ -106,7 +106,7 @@ jobs:
         uses: TheBevyFlock/bevy_cli/bevy_lint@lint-v0.4.0
         with:
           cache: true
-          save-cache-if: ${{ github.ref == 'refs/heads/main' }}
+          save-cache-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Restore Rust cache
         id: cache
@@ -145,7 +145,7 @@ jobs:
         with:
           shared-key: test
           cache-directories: ${{ env.LD_LIBRARY_PATH }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Install build dependencies
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev
@@ -176,7 +176,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: web-ci
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Install build dependencies
         if: steps.cache.outputs.cache-hit != 'true'
