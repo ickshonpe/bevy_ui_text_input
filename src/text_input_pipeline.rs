@@ -124,7 +124,6 @@ pub fn text_input_system(
 ) {
     for (node, text_font, text_input_layout_info, mut editor, input) in text_query.iter_mut() {
         let layout_info = text_input_layout_info.into_inner();
-        let y_axis_orientation = YAxisOrientation::TopToBottom;
         if editor.needs_update || text_font.is_changed() || node.is_changed() || input.is_changed()
         {
             let bounds = TextBounds {
@@ -279,10 +278,6 @@ pub fn text_input_system(
                             let x = glyph_size.x as f32 / 2.0 + left + physical_glyph.x as f32;
                             let y = line_y.round() + physical_glyph.y as f32 - top
                                 + glyph_size.y as f32 / 2.0;
-                            let y = match y_axis_orientation {
-                                YAxisOrientation::TopToBottom => y,
-                                YAxisOrientation::BottomToTop => box_size.y - y,
-                            };
 
                             let position = Vec2::new(x, y);
 
@@ -344,7 +339,6 @@ pub fn text_input_prompt_system(
         text_query.iter_mut()
     {
         let layout_info = text_input_layout_info.into_inner();
-        let y_axis_orientation = YAxisOrientation::TopToBottom;
         if prompt.is_changed()
             || input.is_changed()
             || editor.prompt_buffer.is_none()
@@ -494,10 +488,6 @@ pub fn text_input_prompt_system(
                         let x = glyph_size.x as f32 / 2.0 + left + physical_glyph.x as f32;
                         let y = line_y.round() + physical_glyph.y as f32 - top
                             + glyph_size.y as f32 / 2.0;
-                        let y = match y_axis_orientation {
-                            YAxisOrientation::TopToBottom => y,
-                            YAxisOrientation::BottomToTop => box_size.y - y,
-                        };
 
                         let position = Vec2::new(x, y);
 

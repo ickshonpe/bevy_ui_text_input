@@ -40,7 +40,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                         overflow: Overflow::clip(),
                         ..Default::default()
                     },
-                    BorderColor(Color::WHITE),
+                    BorderColor::from(Color::WHITE),
                     BackgroundColor(Color::BLACK),
                 ))
                 .with_child((
@@ -96,7 +96,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                 padding: UiRect::all(Val::Px(2.)),
                 ..Default::default()
             },
-            BorderColor(Color::WHITE),
+            BorderColor::from(Color::WHITE),
             Button,
         ))
         .with_child(Text::new("Submit"))
@@ -142,7 +142,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                 padding: UiRect::all(Val::Px(2.)),
                                 ..Default::default()
                             },
-                            BorderColor(Color::WHITE), Button
+                            BorderColor::from(Color::WHITE), Button
                         ))
                         .with_child(Text::new("sans"))
                         .observe(
@@ -161,7 +161,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                 padding: UiRect::all(Val::Px(2.)),
                                 ..Default::default()
                             },
-                            BorderColor(Color::WHITE), Button
+                            BorderColor::from(Color::WHITE), Button
                         ))
                         .observe(
                             move |_: On<Pointer<Click>>,
@@ -188,7 +188,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                 padding: UiRect::all(Val::Px(2.)),
                                 ..Default::default()
                             },
-                            BorderColor(Color::WHITE), Button
+                            BorderColor::from(Color::WHITE), Button
                         ))
                         .observe(
                             move |_: On<Pointer<Click>>, mut query: Query<&mut TextFont>| {
@@ -206,7 +206,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                 padding: UiRect::all(Val::Px(2.)),
                                 ..Default::default()
                             },
-                            BorderColor(Color::WHITE), Button
+                            BorderColor::from(Color::WHITE), Button
                         ))
                         .observe(
                             move |_: On<Pointer<Click>>, mut query: Query<&mut TextFont>| {
@@ -233,7 +233,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                         padding: UiRect::all(Val::Px(2.)),
                                         ..Default::default()
                                     },
-                                    BorderColor(Color::WHITE), Button
+                                    BorderColor::from(Color::WHITE), Button
                                 ))
                                 .observe(
                                     move |_: On<Pointer<Click>>, mut query: Query<&mut Node>| {
@@ -261,7 +261,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                     padding: UiRect::all(Val::Px(2.)),
                                     ..Default::default()
                                 },
-                                BorderColor(Color::WHITE), Button
+                                BorderColor::from(Color::WHITE), Button
                             ))
                             .observe(
                                 move |_: On<Pointer<Click>>, mut query: Query<&mut Node>| {
@@ -288,7 +288,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                     padding: UiRect::all(Val::Px(2.)),
                                     ..Default::default()
                                 },
-                                BorderColor(Color::WHITE), Button
+                                BorderColor::from(Color::WHITE), Button
                             ))
                             .observe(
                                 move |_: On<Pointer<Click>>, mut query: Query<&mut TextInputNode>| {
@@ -320,7 +320,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                     padding: UiRect::all(Val::Px(2.)),
                                     ..Default::default()
                                 },
-                                BorderColor(Color::WHITE), Button
+                                BorderColor::from(Color::WHITE), Button
                             ))
                             .observe(
                                 move |_: On<Pointer<Click>>, mut query: Query<&mut TextInputNode>| {
@@ -355,7 +355,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                         padding: UiRect::all(Val::Px(2.)),
                         ..Default::default()
                     },
-                    BorderColor(Color::WHITE),
+                    BorderColor::from(Color::WHITE),
                     BackgroundColor(Color::BLACK),
                 ))
                 .add_child(editor);

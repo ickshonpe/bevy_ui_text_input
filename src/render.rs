@@ -18,6 +18,7 @@ use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
 use bevy::image::TextureAtlasLayout;
 use bevy::input_focus::InputFocus;
+use bevy::math::Affine2;
 use bevy::math::Mat4;
 use bevy::math::Rect;
 use bevy::math::Vec2;
@@ -31,12 +32,14 @@ use bevy::ui::CalculatedClip;
 use bevy::ui::ComputedNode;
 use bevy::ui::ComputedUiTargetCamera;
 use bevy::ui::ResolvedBorderRadius;
+use bevy::ui::UiGlobalTransform;
 use bevy::ui_render::ExtractedGlyph;
 use bevy::ui_render::ExtractedUiItem;
 use bevy::ui_render::ExtractedUiNode;
 use bevy::ui_render::ExtractedUiNodes;
 use bevy::ui_render::NodeType;
 use bevy::ui_render::UiCameraMap;
+use bevy::ui_render::stack_z_offsets;
 use cosmic_text::Edit;
 
 pub fn extract_text_input_nodes(
@@ -100,11 +103,15 @@ pub fn extract_text_input_nodes(
             .with_buffer(|buffer| Vec2::new(buffer.scroll().horizontal, 0.)); // buffer.scroll().vertical));
 
         let transform = Affine2::from(global_transform)
-            global_transform.into() * Affine2::from_translation(uinode.size() * -0.5 - scroll);
+            * Affine2::from_translation(uinode.size() * -0.5 - scroll);
 
         let node_rect = Rect::from_center_size(
-            global_transform.translation().truncate(),
-            uinode.size() * global_transform.scale().truncate(),
+            global_transform.translation,
+            uinode.size()
+                * Vec2::new(
+                    global_transform.matrix2.col(0).length(),
+                    global_transform.matrix2.col(1).length(),
+                ),
         );
 
         let clip = Some(
@@ -193,15 +200,14 @@ pub fn extract_text_input_nodes(
             });
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index: uinode.stack_index,
-                color: color_out,
+                z_order: uinode.stack_index as f32 + stack_z_offsets::TEXT,
                 image: atlas_info.texture,
                 clip,
-                rect,
                 extracted_camera_entity,
                 item: ExtractedUiItem::Glyphs { range: start..end },
                 main_entity: entity.into(),
                 render_entity: commands.spawn(TemporaryRenderEntity).id(),
+                transform: todo!("help"),
             });
 
             start = end;
@@ -298,12 +304,16 @@ pub fn extract_text_input_prompts(
 
         let color = prompt.color.unwrap_or(text_color.0).to_linear();
 
-        let transform = global_transform.affine()
-            * bevy::math::Affine3A::from_translation((-0.5 * uinode.size()).extend(0.));
+        let transform =
+            Affine2::from(global_transform) * Affine2::from_translation((-0.5 * uinode.size()));
 
         let node_rect = Rect::from_center_size(
-            global_transform.translation().truncate(),
-            uinode.size() * global_transform.scale().truncate(),
+            global_transform.translation,
+            uinode.size()
+                * Vec2::new(
+                    global_transform.matrix2.col(0).length(),
+                    global_transform.matrix2.col(1).length(),
+                ),
         );
 
         let clip = Some(
@@ -330,10 +340,8 @@ pub fn extract_text_input_prompts(
             extracted_uinodes.uinodes.push(ExtractedUiNode {
                 z_order: uinode.stack_index() as f32 + stack_z_offsets::TEXT,
                 transform,
-                color,
                 image: atlas_info.texture,
                 clip,
-                rect,
                 item: ExtractedUiItem::Glyphs { range: start..end },
                 main_entity: entity.into(),
                 render_entity: commands.spawn(TemporaryRenderEntity).id(),
