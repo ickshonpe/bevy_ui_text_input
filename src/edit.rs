@@ -116,7 +116,8 @@ pub(crate) fn on_drag_text_input(
     }
 
     if input_focus
-        .0.is_none_or(|input_focus_entity| input_focus_entity != trigger.entity)
+        .0
+        .is_none_or(|input_focus_entity| input_focus_entity != trigger.entity)
     {
         return;
     }
@@ -170,7 +171,8 @@ pub(crate) fn on_text_input_pressed(
     }
 
     if input_focus
-        .get().is_none_or(|active_input| active_input != trigger.entity)
+        .get()
+        .is_none_or(|active_input| active_input != trigger.entity)
     {
         input_focus.set(trigger.entity);
     }
@@ -269,39 +271,39 @@ pub fn on_multi_click_set_selection(
     if let Ok(mut multi_click_data) = multi_click_datas.get_mut(entity)
         && now - multi_click_data.last_click_time
             <= MULTI_CLICK_PERIOD * multi_click_data.click_count as f32
-        {
-            let rect = Rect::from_center_size(transform.translation().truncate(), node.size());
+    {
+        let rect = Rect::from_center_size(transform.translation().truncate(), node.size());
 
-            let position =
-                click.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
-            let mut editor = buffer
-                .editor
-                .borrow_with(&mut text_input_pipeline.font_system);
-            let scroll = editor.with_buffer(|buffer| buffer.scroll());
-            match multi_click_data.click_count {
-                1 => {
-                    multi_click_data.click_count += 1;
-                    multi_click_data.last_click_time = now;
+        let position =
+            click.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
+        let mut editor = buffer
+            .editor
+            .borrow_with(&mut text_input_pipeline.font_system);
+        let scroll = editor.with_buffer(|buffer| buffer.scroll());
+        match multi_click_data.click_count {
+            1 => {
+                multi_click_data.click_count += 1;
+                multi_click_data.last_click_time = now;
 
-                    queue.add(TextInputAction::Edit(TextInputEdit::DoubleClick {
-                        x: position.x as i32 + scroll.horizontal as i32,
-                        y: position.y as i32,
-                    }));
-                    return;
-                }
-                2 => {
-                    editor.action(Action::Motion(Motion::ParagraphStart));
-                    let cursor = editor.cursor();
-                    editor.set_selection(Selection::Normal(cursor));
-                    editor.action(Action::Motion(Motion::ParagraphEnd));
-                    if let Ok(mut entity) = commands.get_entity(entity) {
-                        entity.try_remove::<MultiClickData>();
-                    }
-                    return;
-                }
-                _ => (),
+                queue.add(TextInputAction::Edit(TextInputEdit::DoubleClick {
+                    x: position.x as i32 + scroll.horizontal as i32,
+                    y: position.y as i32,
+                }));
+                return;
             }
+            2 => {
+                editor.action(Action::Motion(Motion::ParagraphStart));
+                let cursor = editor.cursor();
+                editor.set_selection(Selection::Normal(cursor));
+                editor.action(Action::Motion(Motion::ParagraphEnd));
+                if let Ok(mut entity) = commands.get_entity(entity) {
+                    entity.try_remove::<MultiClickData>();
+                }
+                return;
+            }
+            _ => (),
         }
+    }
     if let Ok(mut entity) = commands.get_entity(entity) {
         entity.try_insert(MultiClickData {
             last_click_time: now,

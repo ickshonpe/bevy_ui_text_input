@@ -205,18 +205,16 @@ pub fn text_input_system(
                 let box_size = buffer_dimensions(buffer);
                 let result = buffer.layout_runs().try_for_each(|run| {
                     if let Some(selection) = selection
-                        && let Some((x0, w)) = run.highlight(selection.0, selection.1) {
-                            let y0 = run.line_top;
-                            let y1 = y0 + run.line_height;
-                            let x1 = x0 + w;
-                            let r = Rect::new(x0, y0, x1, y1);
-                            selection_rects.push(r);
-                        }
+                        && let Some((x0, w)) = run.highlight(selection.0, selection.1)
+                    {
+                        let y0 = run.line_top;
+                        let y1 = y0 + run.line_height;
+                        let x1 = x0 + w;
+                        let r = Rect::new(x0, y0, x1, y1);
+                        selection_rects.push(r);
+                    }
 
-                    
-
-                    run
-                        .glyphs
+                    run.glyphs
                         .iter()
                         .map(move |layout_glyph| (layout_glyph, run.line_y, run.line_i))
                         .try_for_each(|(layout_glyph, line_y, line_i)| {
@@ -425,10 +423,7 @@ pub fn text_input_prompt_system(
 
             let box_size = buffer_dimensions(buffer);
             let result = buffer.layout_runs().try_for_each(|run| {
-                
-
-                run
-                    .glyphs
+                run.glyphs
                     .iter()
                     .map(move |layout_glyph| (layout_glyph, run.line_y, run.line_i))
                     .try_for_each(|(layout_glyph, line_y, line_i)| {
