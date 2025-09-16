@@ -207,7 +207,7 @@ pub fn extract_text_input_nodes(
                 item: ExtractedUiItem::Glyphs { range: start..end },
                 main_entity: entity.into(),
                 render_entity: commands.spawn(TemporaryRenderEntity).id(),
-                transform: todo!("help"),
+                transform: transform * Affine2::from_translation(*position),
             });
 
             start = end;
