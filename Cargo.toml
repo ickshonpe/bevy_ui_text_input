@@ -26,7 +26,16 @@ wasm-bindgen = { version = "0.2" }
 web-sys = { version = "0.3", features = ["Navigator", "Clipboard"] }
 wasm-bindgen-futures = "0.4"
 
-
 [lints.clippy]
 too_many_arguments = "allow"
 type_complexity = "allow"
+
+# Optimize for build time in CI.
+[profile.ci]
+inherits = "dev"
+opt-level = 0
+debug = "line-tables-only"
+codegen-units = 4
+
+[profile.ci.package."*"]
+opt-level = 0
