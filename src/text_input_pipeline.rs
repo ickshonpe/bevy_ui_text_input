@@ -204,17 +204,18 @@ pub fn text_input_system(
             let result = editor.with_buffer_mut(|buffer| {
                 let box_size = buffer_dimensions(buffer);
                 let result = buffer.layout_runs().try_for_each(|run| {
-                    if let Some(selection) = selection {
-                        if let Some((x0, w)) = run.highlight(selection.0, selection.1) {
+                    if let Some(selection) = selection
+                        && let Some((x0, w)) = run.highlight(selection.0, selection.1) {
                             let y0 = run.line_top;
                             let y1 = y0 + run.line_height;
                             let x1 = x0 + w;
                             let r = Rect::new(x0, y0, x1, y1);
                             selection_rects.push(r);
                         }
-                    }
 
-                    let result = run
+                    
+
+                    run
                         .glyphs
                         .iter()
                         .map(move |layout_glyph| (layout_glyph, run.line_y, run.line_i))
@@ -292,9 +293,7 @@ pub fn text_input_system(
                             };
                             layout_info.glyphs.push(pos_glyph);
                             Ok(())
-                        });
-
-                    result
+                        })
                 });
 
                 // Check result.
@@ -312,8 +311,8 @@ pub fn text_input_system(
                     panic!("Fatal error when processing text: {e}.");
                 }
                 Ok(()) => {
-                    layout_info.size.x = layout_info.size.x * node.inverse_scale_factor();
-                    layout_info.size.y = layout_info.size.y * node.inverse_scale_factor();
+                    layout_info.size.x *= node.inverse_scale_factor();
+                    layout_info.size.y *= node.inverse_scale_factor();
                     editor.set_redraw(false);
                 }
             }
@@ -388,7 +387,7 @@ pub fn text_input_prompt_system(
                 height: Some(node.size().y),
             };
 
-            let face_info = load_font_to_fontdb(&font, font_system, map_handle_to_font_id, &fonts);
+            let face_info = load_font_to_fontdb(font, font_system, map_handle_to_font_id, &fonts);
 
             buffer.set_size(font_system, bounds.width, bounds.height);
 
@@ -426,7 +425,9 @@ pub fn text_input_prompt_system(
 
             let box_size = buffer_dimensions(buffer);
             let result = buffer.layout_runs().try_for_each(|run| {
-                let result = run
+                
+
+                run
                     .glyphs
                     .iter()
                     .map(move |layout_glyph| (layout_glyph, run.line_y, run.line_i))
@@ -502,9 +503,7 @@ pub fn text_input_prompt_system(
                         };
                         layout_info.glyphs.push(pos_glyph);
                         Ok(())
-                    });
-
-                result
+                    })
             });
 
             layout_info.size = box_size;
@@ -518,8 +517,8 @@ pub fn text_input_prompt_system(
                     panic!("Fatal error when processing text: {e}.");
                 }
                 Ok(()) => {
-                    layout_info.size.x = layout_info.size.x * node.inverse_scale_factor();
-                    layout_info.size.y = layout_info.size.y * node.inverse_scale_factor();
+                    layout_info.size.x *= node.inverse_scale_factor();
+                    layout_info.size.y *= node.inverse_scale_factor();
                 }
             }
         }

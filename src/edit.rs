@@ -97,7 +97,7 @@ pub fn cursor_at_line_end(editor: &mut BorrowedWithFontSystem<Editor<'_>>) -> bo
 }
 
 pub(crate) fn is_buffer_empty(buffer: &cosmic_text::Buffer) -> bool {
-    buffer.lines.len() == 0 || (buffer.lines.len() == 1 && buffer.lines[0].text().is_empty())
+    buffer.lines.is_empty() || (buffer.lines.len() == 1 && buffer.lines[0].text().is_empty())
 }
 
 pub(crate) fn on_drag_text_input(
@@ -115,9 +115,8 @@ pub(crate) fn on_drag_text_input(
         return;
     }
 
-    if !input_focus
-        .0
-        .is_some_and(|input_focus_entity| input_focus_entity == trigger.entity)
+    if input_focus
+        .0.is_none_or(|input_focus_entity| input_focus_entity != trigger.entity)
     {
         return;
     }
@@ -170,9 +169,8 @@ pub(crate) fn on_text_input_pressed(
         return;
     }
 
-    if !input_focus
-        .get()
-        .is_some_and(|active_input| active_input == trigger.entity)
+    if input_focus
+        .get().is_none_or(|active_input| active_input != trigger.entity)
     {
         input_focus.set(trigger.entity);
     }
@@ -268,8 +266,8 @@ pub fn on_multi_click_set_selection(
     }
 
     let now = time.elapsed_secs();
-    if let Ok(mut multi_click_data) = multi_click_datas.get_mut(entity) {
-        if now - multi_click_data.last_click_time
+    if let Ok(mut multi_click_data) = multi_click_datas.get_mut(entity)
+        && now - multi_click_data.last_click_time
             <= MULTI_CLICK_PERIOD * multi_click_data.click_count as f32
         {
             let rect = Rect::from_center_size(transform.translation().truncate(), node.size());
@@ -304,7 +302,6 @@ pub fn on_multi_click_set_selection(
                 _ => (),
             }
         }
-    }
     if let Ok(mut entity) = commands.get_entity(entity) {
         entity.try_insert(MultiClickData {
             last_click_time: now,
@@ -325,7 +322,7 @@ pub fn queue_text_input_action(
     overwrite_mode: &mut bool,
     command_pressed: &mut bool,
     keyboard_input: &KeyboardInput,
-    mut queue: impl FnMut(TextInputAction) -> (),
+    mut queue: impl FnMut(TextInputAction),
 ) {
     match keyboard_input.logical_key {
         Key::Shift => {
@@ -550,13 +547,13 @@ pub fn process_text_input_queues(
     mut submit_writer: MessageWriter<TextSubmitEvent>,
     mut clipboard: ResMut<Clipboard>,
 ) {
-    let mut font_system = &mut text_input_pipeline.font_system;
+    let font_system = &mut text_input_pipeline.font_system;
 
     for (entity, node, mut buffer, mut actions_queue) in query.iter_mut() {
         let TextInputBuffer {
             editor, changes, ..
         } = &mut *buffer;
-        let mut editor = editor.borrow_with(&mut font_system);
+        let mut editor = editor.borrow_with(font_system);
         while let Some(action) = actions_queue.next() {
             match action {
                 TextInputAction::Submit => {

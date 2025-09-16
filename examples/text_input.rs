@@ -303,7 +303,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                     }
                                 },
                             )
-                            .with_child(Text::new(format!("wrap")));
+                            .with_child(Text::new("wrap".to_string()));
                         });
 
                         commands
@@ -326,15 +326,15 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                 move |_: On<Pointer<Click>>, mut query: Query<&mut TextInputNode>| {
                                     if let Ok(mut input) = query.get_mut(editor) {
                                         input.justification = match input.justification {
-                                            JustifyText::Left => JustifyText::Center,
-                                            JustifyText::Center => JustifyText::Right,
-                                            JustifyText::Right => JustifyText::Justified,
-                                            JustifyText::Justified => JustifyText::Left,
+                                            Justify::Left => Justify::Center,
+                                            Justify::Center => Justify::Right,
+                                            Justify::Right => Justify::Justified,
+                                            Justify::Justified => Justify::Left,
                                         }
                                     }
                                 },
                             )
-                            .with_child(Text::new(format!("align")));
+                            .with_child(Text::new("align".to_string()));
                         });
                 });
         })
@@ -404,15 +404,15 @@ fn button_system(
         match *interaction {
             Interaction::Pressed => {
                 color.0 = MAROON.into();
-                border_color.0 = MAROON.into();
+                *border_color = MAROON.into();
             }
             Interaction::Hovered => {
                 color.0 = RED.into();
-                border_color.0 = RED.into();
+                *border_color = RED.into();
             }
             Interaction::None => {
                 color.0 = Color::WHITE;
-                border_color.0 = Color::WHITE;
+                *border_color = Color::WHITE.into();
             }
         }
     }

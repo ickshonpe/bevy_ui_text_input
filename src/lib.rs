@@ -436,13 +436,16 @@ impl TextInputQueue {
         self.actions.push_front(action);
     }
 
-    /// Get the next action
-    pub fn next(&mut self) -> Option<TextInputAction> {
-        self.actions.pop_front()
-    }
-
     /// True if the queue is empty
     pub fn is_empty(&self) -> bool {
         self.actions.is_empty()
+    }
+}
+
+impl Iterator for TextInputQueue {
+    type Item = TextInputAction;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.actions.pop_front()
     }
 }

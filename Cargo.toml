@@ -25,3 +25,8 @@ arboard = { version = "3.6.1", default-features = false }
 wasm-bindgen = { version = "0.2" }
 web-sys = { version = "0.3", features = ["Navigator", "Clipboard"] }
 wasm-bindgen-futures = "0.4"
+
+
+[lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"
