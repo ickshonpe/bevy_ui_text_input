@@ -48,7 +48,7 @@ pub fn extract_text_input_nodes(
         Query<(
             Entity,
             &ComputedNode,
-            &GlobalTransform,
+            &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
             &ComputedUiTargetCamera,
@@ -99,8 +99,8 @@ pub fn extract_text_input_nodes(
             .editor
             .with_buffer(|buffer| Vec2::new(buffer.scroll().horizontal, 0.)); // buffer.scroll().vertical));
 
-        let transform = global_transform.affine()
-            * bevy::math::Affine3A::from_translation((uinode.size() * -0.5 - scroll).extend(0.));
+        let transform = Affine2::from(global_transform)
+            global_transform.into() * Affine2::from_translation(uinode.size() * -0.5 - scroll);
 
         let node_rect = Rect::from_center_size(
             global_transform.translation().truncate(),
@@ -123,11 +123,11 @@ pub fn extract_text_input_nodes(
                 rect.size()
             } + 2. * Vec2::X;
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index: uinode.stack_index,
+                z_order: uinode.stack_index as f32 + stack_z_offsets::TEXT,
                 image: AssetId::default(),
                 clip,
                 extracted_camera_entity,
-                transform: transform * Mat4::from_translation(rect.center().extend(0.)),
+                transform: transform * Affine2::from_translation(rect.center()),
                 item: ExtractedUiItem::Node {
                     color: LinearRgba::from(style.selection_color),
                     atlas_scaling: None,
@@ -187,7 +187,8 @@ pub fn extract_text_input_nodes(
             };
 
             extracted_uinodes.glyphs.push(ExtractedGlyph {
-                translation: (transform * Mat4::from_translation(position.extend(0.))),
+                color: color_out,
+                translation: *position,
                 rect,
             });
 
@@ -217,16 +218,12 @@ pub fn extract_text_input_nodes(
             let width = style.cursor_width * scale_factor;
 
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index: uinode.stack_index,
+                z_order: uinode.stack_index as f32 + stack_z_offsets::TEXT,
                 image: AssetId::default(),
                 clip,
                 extracted_camera_entity,
-                transform: (transform
-                    * Mat4::from_translation(Vec3::new(
-                        x + 0.5 * width,
-                        y + 0.5 * line_height,
-                        0.,
-                    ))),
+                transform: transform
+                    * Affine2::from_translation(Vec2::new(x + 0.5 * width, y + 0.5 * line_height)),
                 item: ExtractedUiItem::Node {
                     color,
                     atlas_scaling: None,
@@ -255,7 +252,7 @@ pub fn extract_text_input_prompts(
         Query<(
             Entity,
             &ComputedNode,
-            &GlobalTransform,
+            &UiGlobalTransform,
             &InheritedVisibility,
             Option<&CalculatedClip>,
             &ComputedUiTargetCamera,
@@ -326,11 +323,13 @@ pub fn extract_text_input_prompts(
                 .textures[atlas_info.location.glyph_index]
                 .as_rect();
             extracted_uinodes.glyphs.push(ExtractedGlyph {
-                translation: (transform * Mat4::from_translation(position.extend(0.))),
+                color,
+                translation: *position,
                 rect,
             });
             extracted_uinodes.uinodes.push(ExtractedUiNode {
-                stack_index: uinode.stack_index(),
+                z_order: uinode.stack_index() as f32 + stack_z_offsets::TEXT,
+                transform,
                 color,
                 image: atlas_info.texture,
                 clip,

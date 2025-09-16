@@ -28,7 +28,6 @@ use bevy::text::LineHeight;
 use bevy::text::TextBounds;
 use bevy::text::TextError;
 use bevy::text::TextFont;
-use bevy::text::YAxisOrientation;
 use bevy::ui::ComputedNode;
 use cosmic_text;
 use cosmic_text::Buffer;
