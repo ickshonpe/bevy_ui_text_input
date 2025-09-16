@@ -35,8 +35,8 @@ use bevy::picking::events::Press;
 use bevy::picking::hover::HoverMap;
 use bevy::picking::pointer::PointerButton;
 use bevy::time::Time;
-use bevy::transform::components::GlobalTransform;
 use bevy::ui::ComputedNode;
+use bevy::ui::UiGlobalTransform;
 use cosmic_text::Action;
 use cosmic_text::BorrowedWithFontSystem;
 use cosmic_text::Change;
@@ -104,7 +104,7 @@ pub(crate) fn on_drag_text_input(
     trigger: On<Pointer<Drag>>,
     mut node_query: Query<(
         &ComputedNode,
-        &GlobalTransform,
+        &UiGlobalTransform,
         &mut TextInputBuffer,
         &TextInputNode,
     )>,
@@ -130,7 +130,7 @@ pub(crate) fn on_drag_text_input(
         return;
     }
 
-    let rect = Rect::from_center_size(transform.translation().truncate(), node.size());
+    let rect = Rect::from_center_size(transform.translation, node.size());
 
     let position =
         trigger.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
@@ -151,7 +151,7 @@ pub(crate) fn on_text_input_pressed(
     trigger: On<Pointer<Press>>,
     mut node_query: Query<(
         &ComputedNode,
-        &GlobalTransform,
+        &UiGlobalTransform,
         &mut TextInputBuffer,
         &TextInputNode,
     )>,
@@ -177,7 +177,7 @@ pub(crate) fn on_text_input_pressed(
         input_focus.set(trigger.entity);
     }
 
-    let rect = Rect::from_center_size(transform.translation().truncate(), node.size());
+    let rect = Rect::from_center_size(transform.translation, node.size());
 
     let position =
         trigger.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
@@ -245,7 +245,7 @@ pub fn on_multi_click_set_selection(
         &TextInputNode,
         &mut TextInputQueue,
         &mut TextInputBuffer,
-        &GlobalTransform,
+        &UiGlobalTransform,
         &ComputedNode,
     )>,
     mut multi_click_datas: Query<&mut MultiClickData>,
@@ -272,7 +272,7 @@ pub fn on_multi_click_set_selection(
         && now - multi_click_data.last_click_time
             <= MULTI_CLICK_PERIOD * multi_click_data.click_count as f32
     {
-        let rect = Rect::from_center_size(transform.translation().truncate(), node.size());
+        let rect = Rect::from_center_size(transform.translation, node.size());
 
         let position =
             click.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
