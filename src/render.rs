@@ -19,15 +19,12 @@ use bevy::ecs::system::ResMut;
 use bevy::image::TextureAtlasLayout;
 use bevy::input_focus::InputFocus;
 use bevy::math::Affine2;
-use bevy::math::Mat4;
 use bevy::math::Rect;
 use bevy::math::Vec2;
-use bevy::math::Vec3;
 use bevy::render::Extract;
 use bevy::render::sync_world::TemporaryRenderEntity;
 use bevy::sprite::BorderRect;
 use bevy::text::TextColor;
-use bevy::transform::components::GlobalTransform;
 use bevy::ui::CalculatedClip;
 use bevy::ui::ComputedNode;
 use bevy::ui::ComputedUiTargetCamera;
@@ -207,7 +204,7 @@ pub fn extract_text_input_nodes(
                 item: ExtractedUiItem::Glyphs { range: start..end },
                 main_entity: entity.into(),
                 render_entity: commands.spawn(TemporaryRenderEntity).id(),
-                transform: transform * Affine2::from_translation(*position),
+                transform,
             });
 
             start = end;
@@ -305,7 +302,7 @@ pub fn extract_text_input_prompts(
         let color = prompt.color.unwrap_or(text_color.0).to_linear();
 
         let transform =
-            Affine2::from(global_transform) * Affine2::from_translation((-0.5 * uinode.size()));
+            Affine2::from(global_transform) * Affine2::from_translation(-0.5 * uinode.size());
 
         let node_rect = Rect::from_center_size(
             global_transform.translation,
