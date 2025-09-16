@@ -56,6 +56,6 @@ fn setup(mut commands: Commands, mut active_input: ResMut<InputFocus>) {
 fn reciever(mut events: MessageReader<SubmitText>) {
     for event in events.read() {
         let d: f64 = event.text.parse().unwrap();
-        println!("decimal: {}", d);
+        println!("decimal: {d}");
     }
 }
