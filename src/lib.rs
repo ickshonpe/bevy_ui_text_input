@@ -49,7 +49,7 @@ pub struct TextInputPlugin;
 
 impl Plugin for TextInputPlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        app.add_message::<TextSubmitEvent>()
+        app.add_message::<SubmitText>()
             .add_plugins(bevy::input_focus::InputDispatchPlugin)
             .init_resource::<TextInputGlobalState>()
             .init_resource::<TextInputPipeline>()
@@ -158,9 +158,12 @@ fn on_remove_unfocus(mut world: DeferredWorld, context: HookContext) {
     }
 }
 
+#[deprecated(since = "0.6.0", note = "Use `SubmitText` instead")]
+pub type TextSubmitEvent = SubmitText;
+
 /// Sent when a text input submits its text
 #[derive(Message)]
-pub struct TextSubmitEvent {
+pub struct SubmitText {
     /// The text input entity that submitted the text
     pub entity: Entity,
     /// The submitted text

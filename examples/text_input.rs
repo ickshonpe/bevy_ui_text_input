@@ -5,8 +5,8 @@ use bevy::{
     prelude::*,
 };
 use bevy_ui_text_input::{
-    TextInputBuffer, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
-    TextInputQueue, TextInputStyle, TextSubmitEvent, actions::TextInputAction,
+    SubmitText, TextInputBuffer, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
+    TextInputQueue, TextInputStyle, actions::TextInputAction,
 };
 
 fn main() {
@@ -418,10 +418,7 @@ fn button_system(
     }
 }
 
-fn submit(
-    mut events: MessageReader<TextSubmitEvent>,
-    mut query: Query<&mut Text, With<OutputMarker>>,
-) {
+fn submit(mut events: MessageReader<SubmitText>, mut query: Query<&mut Text, With<OutputMarker>>) {
     for event in events.read() {
         for mut text in query.iter_mut() {
             text.0 = event.text.clone();
