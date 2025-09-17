@@ -5,8 +5,8 @@ use bevy::{
     prelude::*,
 };
 use bevy_ui_text_input::{
-    TextInputQueue, TextInputBuffer, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
-    TextInputStyle, TextSubmitEvent, actions::TextInputAction,
+    SubmitText, TextInputBuffer, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
+    TextInputQueue, TextInputStyle, actions::TextInputAction,
 };
 
 fn main() {
@@ -40,7 +40,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                         overflow: Overflow::clip(),
                         ..Default::default()
                     },
-                    BorderColor(Color::WHITE),
+                    BorderColor::from(Color::WHITE),
                     BackgroundColor(Color::BLACK),
                 ))
                 .with_child((
@@ -96,12 +96,12 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                 padding: UiRect::all(Val::Px(2.)),
                 ..Default::default()
             },
-            BorderColor(Color::WHITE),
+            BorderColor::from(Color::WHITE),
             Button,
         ))
         .with_child(Text::new("Submit"))
         .observe(
-            move |_: Trigger<Pointer<Click>>, mut query: Query<&mut TextInputQueue>| {
+            move |_: On<Pointer<Click>>, mut query: Query<&mut TextInputQueue>| {
                 query.get_mut(editor).unwrap().add(TextInputAction::Submit);
             },
         )
@@ -142,11 +142,11 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                 padding: UiRect::all(Val::Px(2.)),
                                 ..Default::default()
                             },
-                            BorderColor(Color::WHITE), Button
+                            BorderColor::from(Color::WHITE), Button
                         ))
                         .with_child(Text::new("sans"))
                         .observe(
-                            move |_: Trigger<Pointer<Click>>,
+                            move |_: On<Pointer<Click>>,
                                 mut query: Query<&mut TextFont>,
                                 assets: Res<AssetServer>| {
                                 if let Ok(mut text_font) = query.get_mut(editor) {
@@ -161,10 +161,10 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                 padding: UiRect::all(Val::Px(2.)),
                                 ..Default::default()
                             },
-                            BorderColor(Color::WHITE), Button
+                            BorderColor::from(Color::WHITE), Button
                         ))
                         .observe(
-                            move |_: Trigger<Pointer<Click>>,
+                            move |_: On<Pointer<Click>>,
                                   mut query: Query<&mut TextFont>,
                                   assets: Res<AssetServer>| {
                                 if let Ok(mut text_font) = query.get_mut(editor) {
@@ -188,10 +188,10 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                 padding: UiRect::all(Val::Px(2.)),
                                 ..Default::default()
                             },
-                            BorderColor(Color::WHITE), Button
+                            BorderColor::from(Color::WHITE), Button
                         ))
                         .observe(
-                            move |_: Trigger<Pointer<Click>>, mut query: Query<&mut TextFont>| {
+                            move |_: On<Pointer<Click>>, mut query: Query<&mut TextFont>| {
                                 if let Ok(mut text_font) = query.get_mut(editor) {
                                     text_font.font_size = 16.;
                                 }
@@ -206,10 +206,10 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                 padding: UiRect::all(Val::Px(2.)),
                                 ..Default::default()
                             },
-                            BorderColor(Color::WHITE), Button
+                            BorderColor::from(Color::WHITE), Button
                         ))
                         .observe(
-                            move |_: Trigger<Pointer<Click>>, mut query: Query<&mut TextFont>| {
+                            move |_: On<Pointer<Click>>, mut query: Query<&mut TextFont>| {
                                 if let Ok(mut text_font) = query.get_mut(editor) {
                                     text_font.font_size = 25.;
                                 }
@@ -233,10 +233,10 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                         padding: UiRect::all(Val::Px(2.)),
                                         ..Default::default()
                                     },
-                                    BorderColor(Color::WHITE), Button
+                                    BorderColor::from(Color::WHITE), Button
                                 ))
                                 .observe(
-                                    move |_: Trigger<Pointer<Click>>, mut query: Query<&mut Node>| {
+                                    move |_: On<Pointer<Click>>, mut query: Query<&mut Node>| {
                                         if let Ok(mut node) = query.get_mut(editor) {
                                             node.width = Val::Px(w as f32);
                                         }
@@ -261,10 +261,10 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                     padding: UiRect::all(Val::Px(2.)),
                                     ..Default::default()
                                 },
-                                BorderColor(Color::WHITE), Button
+                                BorderColor::from(Color::WHITE), Button
                             ))
                             .observe(
-                                move |_: Trigger<Pointer<Click>>, mut query: Query<&mut Node>| {
+                                move |_: On<Pointer<Click>>, mut query: Query<&mut Node>| {
                                     if let Ok(mut node) = query.get_mut(editor) {
                                         node.height = Val::Px(h as f32);
                                     }
@@ -288,22 +288,22 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                     padding: UiRect::all(Val::Px(2.)),
                                     ..Default::default()
                                 },
-                                BorderColor(Color::WHITE), Button
+                                BorderColor::from(Color::WHITE), Button
                             ))
                             .observe(
-                                move |_: Trigger<Pointer<Click>>, mut query: Query<&mut TextInputNode>| {
+                                move |_: On<Pointer<Click>>, mut query: Query<&mut TextInputNode>| {
                                     if let Ok(mut input) = query.get_mut(editor) {
                                         let wrap = match input.mode.wrap() {
-                                            bevy::text::cosmic_text::Wrap::None => bevy::text::cosmic_text::Wrap::Glyph,
-                                            bevy::text::cosmic_text::Wrap::Glyph => bevy::text::cosmic_text::Wrap::Word,
-                                            bevy::text::cosmic_text::Wrap::Word => bevy::text::cosmic_text::Wrap::WordOrGlyph,
-                                            bevy::text::cosmic_text::Wrap::WordOrGlyph => bevy::text::cosmic_text::Wrap::None,
+                                            cosmic_text::Wrap::None => cosmic_text::Wrap::Glyph,
+                                            cosmic_text::Wrap::Glyph => cosmic_text::Wrap::Word,
+                                            cosmic_text::Wrap::Word => cosmic_text::Wrap::WordOrGlyph,
+                                            cosmic_text::Wrap::WordOrGlyph => cosmic_text::Wrap::None,
                                         };
                                         input.mode = TextInputMode::MultiLine { wrap };
                                     }
                                 },
                             )
-                            .with_child(Text::new(format!("wrap")));
+                            .with_child(Text::new("wrap".to_string()));
                         });
 
                         commands
@@ -320,21 +320,21 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                     padding: UiRect::all(Val::Px(2.)),
                                     ..Default::default()
                                 },
-                                BorderColor(Color::WHITE), Button
+                                BorderColor::from(Color::WHITE), Button
                             ))
                             .observe(
-                                move |_: Trigger<Pointer<Click>>, mut query: Query<&mut TextInputNode>| {
+                                move |_: On<Pointer<Click>>, mut query: Query<&mut TextInputNode>| {
                                     if let Ok(mut input) = query.get_mut(editor) {
                                         input.justification = match input.justification {
-                                            JustifyText::Left => JustifyText::Center,
-                                            JustifyText::Center => JustifyText::Right,
-                                            JustifyText::Right => JustifyText::Justified,
-                                            JustifyText::Justified => JustifyText::Left,
+                                            Justify::Left => Justify::Center,
+                                            Justify::Center => Justify::Right,
+                                            Justify::Right => Justify::Justified,
+                                            Justify::Justified => Justify::Left,
                                         }
                                     }
                                 },
                             )
-                            .with_child(Text::new(format!("align")));
+                            .with_child(Text::new("align".to_string()));
                         });
                 });
         })
@@ -355,7 +355,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                         padding: UiRect::all(Val::Px(2.)),
                         ..Default::default()
                     },
-                    BorderColor(Color::WHITE),
+                    BorderColor::from(Color::WHITE),
                     BackgroundColor(Color::BLACK),
                 ))
                 .add_child(editor);
@@ -404,24 +404,21 @@ fn button_system(
         match *interaction {
             Interaction::Pressed => {
                 color.0 = MAROON.into();
-                border_color.0 = MAROON.into();
+                *border_color = MAROON.into();
             }
             Interaction::Hovered => {
                 color.0 = RED.into();
-                border_color.0 = RED.into();
+                *border_color = RED.into();
             }
             Interaction::None => {
                 color.0 = Color::WHITE;
-                border_color.0 = Color::WHITE;
+                *border_color = Color::WHITE.into();
             }
         }
     }
 }
 
-fn submit(
-    mut events: EventReader<TextSubmitEvent>,
-    mut query: Query<&mut Text, With<OutputMarker>>,
-) {
+fn submit(mut events: MessageReader<SubmitText>, mut query: Query<&mut Text, With<OutputMarker>>) {
     for event in events.read() {
         for mut text in query.iter_mut() {
             text.0 = event.text.clone();

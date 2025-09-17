@@ -3,23 +3,39 @@ name = "bevy_ui_text_input"
 keywords = ["bevy", "gamedev", "ui", "text", "input"]
 description = "Bevy UI text input plugin"
 categories = ["game-development", "gui", "text-editors"]
-version = "0.5.2"
+version = "0.6.0-rc.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/ickshonpe/bevy_ui_text_input"
 
 [dependencies]
-bevy = { version = "0.16", features = ["bevy_asset", "bevy_ui"] }
-sys-locale = "0.3.0"
-regex = "1.11.1"
+bevy = { version = "0.17.0-rc", features = ["bevy_asset", "bevy_ui"] }
+sys-locale = "0.3.2"
+regex = "1.11.2"
 once_cell = "1.21.3"
 cosmic_undo_2 = "0.2.0"
+# Keep in sync with https://github.com/bevyengine/bevy/blob/main/crates/bevy_text/Cargo.toml#L33
+cosmic-text = "0.14"
 
 [target.'cfg(any(windows, unix))'.dependencies]
-arboard = { version = "3.5.0", default-features = false }
+arboard = { version = "3.6.1", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2" }
 web-sys = { version = "0.3", features = ["Navigator", "Clipboard"] }
 wasm-bindgen-futures = "0.4"
+
+[lints.clippy]
+too_many_arguments = "allow"
+type_complexity = "allow"
+
+# Optimize for build time in CI.
+[profile.ci]
+inherits = "dev"
+opt-level = 0
+debug = "line-tables-only"
+codegen-units = 4
+
+[profile.ci.package."*"]
+opt-level = 0

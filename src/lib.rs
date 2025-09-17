@@ -8,13 +8,14 @@ use std::collections::VecDeque;
 
 use actions::TextInputAction;
 use bevy::app::{Plugin, PostUpdate};
-use bevy::asset::AssetEvents;
+use bevy::asset::AssetEventSystems;
 use bevy::color::Color;
 use bevy::color::palettes::css::SKY_BLUE;
 use bevy::color::palettes::tailwind::GRAY_400;
-use bevy::ecs::component::{Component, HookContext};
+use bevy::ecs::component::Component;
 use bevy::ecs::entity::Entity;
-use bevy::ecs::event::Event;
+use bevy::ecs::lifecycle::HookContext;
+use bevy::ecs::message::Message;
 use bevy::ecs::observer::Observer;
 use bevy::ecs::query::Changed;
 use bevy::ecs::resource::Resource;
@@ -26,10 +27,11 @@ use bevy::math::{Rect, Vec2};
 use bevy::prelude::ReflectComponent;
 use bevy::reflect::{Reflect, std_traits::ReflectDefault};
 use bevy::render::{ExtractSchedule, RenderApp};
-use bevy::text::cosmic_text::{Buffer, Change, Edit, Editor, Metrics, Wrap};
 use bevy::text::{GlyphAtlasInfo, TextFont};
-use bevy::text::{JustifyText, TextColor};
-use bevy::ui::{Node, RenderUiSystem, UiSystem, extract_text_sections};
+use bevy::text::{Justify, TextColor};
+use bevy::ui::{Node, UiSystems};
+use bevy::ui_render::{RenderUiSystems, extract_text_sections};
+use cosmic_text::{Buffer, Change, Edit, Editor, Metrics, Wrap};
 use edit::{
     cursor_blink_system, mouse_wheel_scroll, on_drag_text_input, on_focused_keyboard_input,
     on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
@@ -47,7 +49,7 @@ pub struct TextInputPlugin;
 
 impl Plugin for TextInputPlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        app.add_event::<TextSubmitEvent>()
+        app.add_message::<SubmitText>()
             .add_plugins(bevy::input_focus::InputDispatchPlugin)
             .init_resource::<TextInputGlobalState>()
             .init_resource::<TextInputPipeline>()
@@ -55,7 +57,8 @@ impl Plugin for TextInputPlugin {
             .add_systems(
                 PostUpdate,
                 (
-                    remove_dropped_font_atlas_sets_from_text_input_pipeline.before(AssetEvents),
+                    remove_dropped_font_atlas_sets_from_text_input_pipeline
+                        .before(AssetEventSystems),
                     (
                         cursor_blink_system,
                         mouse_wheel_scroll,
@@ -65,7 +68,7 @@ impl Plugin for TextInputPlugin {
                         text_input_prompt_system,
                     )
                         .chain()
-                        .in_set(UiSystem::PostLayout),
+                        .in_set(UiSystems::PostLayout),
                 ),
             );
 
@@ -77,7 +80,7 @@ impl Plugin for TextInputPlugin {
             ExtractSchedule,
             (extract_text_input_prompts, extract_text_input_nodes)
                 .chain()
-                .in_set(RenderUiSystem::ExtractText)
+                .in_set(RenderUiSystems::ExtractText)
                 .after(extract_text_sections),
         );
     }
@@ -116,7 +119,7 @@ pub struct TextInputNode {
     /// Deactivate after text submitted
     pub unfocus_on_submit: bool,
     /// Text justification
-    pub justification: JustifyText,
+    pub justification: Justify,
 }
 
 impl Default for TextInputNode {
@@ -130,7 +133,7 @@ impl Default for TextInputNode {
             is_enabled: true,
             focus_on_pointer_down: true,
             unfocus_on_submit: true,
-            justification: JustifyText::Left,
+            justification: Justify::Left,
         }
     }
 }
@@ -155,9 +158,12 @@ fn on_remove_unfocus(mut world: DeferredWorld, context: HookContext) {
     }
 }
 
+#[deprecated(since = "0.6.0", note = "Use `SubmitText` instead")]
+pub type TextSubmitEvent = SubmitText;
+
 /// Sent when a text input submits its text
-#[derive(Event)]
-pub struct TextSubmitEvent {
+#[derive(Message)]
+pub struct SubmitText {
     /// The text input entity that submitted the text
     pub entity: Entity,
     /// The submitted text
@@ -433,13 +439,16 @@ impl TextInputQueue {
         self.actions.push_front(action);
     }
 
-    /// Get the next action
-    pub fn next(&mut self) -> Option<TextInputAction> {
-        self.actions.pop_front()
-    }
-
     /// True if the queue is empty
     pub fn is_empty(&self) -> bool {
         self.actions.is_empty()
+    }
+}
+
+impl Iterator for TextInputQueue {
+    type Item = TextInputAction;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.actions.pop_front()
     }
 }

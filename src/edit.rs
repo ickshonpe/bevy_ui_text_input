@@ -1,10 +1,10 @@
+use crate::SubmitText;
 use crate::TextInputBuffer;
 use crate::TextInputGlobalState;
 use crate::TextInputMode;
 use crate::TextInputNode;
 use crate::TextInputQueue;
 use crate::TextInputStyle;
-use crate::TextSubmitEvent;
 use crate::actions::TextInputAction;
 use crate::actions::TextInputEdit;
 use crate::actions::apply_text_input_edit;
@@ -12,9 +12,9 @@ use crate::clipboard::Clipboard;
 use crate::text_input_pipeline::TextInputPipeline;
 use bevy::ecs::component::Component;
 use bevy::ecs::entity::Entity;
-use bevy::ecs::event::EventReader;
-use bevy::ecs::event::EventWriter;
-use bevy::ecs::observer::Trigger;
+use bevy::ecs::message::MessageReader;
+use bevy::ecs::message::MessageWriter;
+use bevy::ecs::observer::On;
 use bevy::ecs::system::Commands;
 use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
@@ -31,19 +31,19 @@ use bevy::picking::events::Click;
 use bevy::picking::events::Drag;
 use bevy::picking::events::Move;
 use bevy::picking::events::Pointer;
-use bevy::picking::events::Pressed;
+use bevy::picking::events::Press;
 use bevy::picking::hover::HoverMap;
 use bevy::picking::pointer::PointerButton;
-use bevy::text::cosmic_text::Action;
-use bevy::text::cosmic_text::BorrowedWithFontSystem;
-use bevy::text::cosmic_text::Change;
-use bevy::text::cosmic_text::Edit;
-use bevy::text::cosmic_text::Editor;
-use bevy::text::cosmic_text::Motion;
-use bevy::text::cosmic_text::Selection;
 use bevy::time::Time;
-use bevy::transform::components::GlobalTransform;
 use bevy::ui::ComputedNode;
+use bevy::ui::UiGlobalTransform;
+use cosmic_text::Action;
+use cosmic_text::BorrowedWithFontSystem;
+use cosmic_text::Change;
+use cosmic_text::Edit;
+use cosmic_text::Editor;
+use cosmic_text::Motion;
+use cosmic_text::Selection;
 
 pub fn apply_action<'a>(
     editor: &mut BorrowedWithFontSystem<Editor<'a>>,
@@ -77,7 +77,7 @@ pub fn apply_motion<'a>(
     editor.action(Action::Motion(motion));
 }
 
-pub fn buffer_len(buffer: &bevy::text::cosmic_text::Buffer) -> usize {
+pub fn buffer_len(buffer: &cosmic_text::Buffer) -> usize {
     buffer
         .lines
         .iter()
@@ -96,15 +96,15 @@ pub fn cursor_at_line_end(editor: &mut BorrowedWithFontSystem<Editor<'_>>) -> bo
     })
 }
 
-pub(crate) fn is_buffer_empty(buffer: &bevy::text::cosmic_text::Buffer) -> bool {
-    buffer.lines.len() == 0 || (buffer.lines.len() == 1 && buffer.lines[0].text().is_empty())
+pub(crate) fn is_buffer_empty(buffer: &cosmic_text::Buffer) -> bool {
+    buffer.lines.is_empty() || (buffer.lines.len() == 1 && buffer.lines[0].text().is_empty())
 }
 
 pub(crate) fn on_drag_text_input(
-    trigger: Trigger<Pointer<Drag>>,
+    trigger: On<Pointer<Drag>>,
     mut node_query: Query<(
         &ComputedNode,
-        &GlobalTransform,
+        &UiGlobalTransform,
         &mut TextInputBuffer,
         &TextInputNode,
     )>,
@@ -115,14 +115,14 @@ pub(crate) fn on_drag_text_input(
         return;
     }
 
-    if !input_focus
+    if input_focus
         .0
-        .is_some_and(|input_focus_entity| input_focus_entity == trigger.target)
+        .is_none_or(|input_focus_entity| input_focus_entity != trigger.entity)
     {
         return;
     }
 
-    let Ok((node, transform, mut buffer, input)) = node_query.get_mut(trigger.target) else {
+    let Ok((node, transform, mut buffer, input)) = node_query.get_mut(trigger.entity) else {
         return;
     };
 
@@ -130,7 +130,7 @@ pub(crate) fn on_drag_text_input(
         return;
     }
 
-    let rect = Rect::from_center_size(transform.translation().truncate(), node.size());
+    let rect = Rect::from_center_size(transform.translation, node.size());
 
     let position =
         trigger.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
@@ -148,10 +148,10 @@ pub(crate) fn on_drag_text_input(
 }
 
 pub(crate) fn on_text_input_pressed(
-    trigger: Trigger<Pointer<Pressed>>,
+    trigger: On<Pointer<Press>>,
     mut node_query: Query<(
         &ComputedNode,
-        &GlobalTransform,
+        &UiGlobalTransform,
         &mut TextInputBuffer,
         &TextInputNode,
     )>,
@@ -162,7 +162,7 @@ pub(crate) fn on_text_input_pressed(
         return;
     }
 
-    let Ok((node, transform, mut buffer, input)) = node_query.get_mut(trigger.target) else {
+    let Ok((node, transform, mut buffer, input)) = node_query.get_mut(trigger.entity) else {
         return;
     };
 
@@ -170,14 +170,14 @@ pub(crate) fn on_text_input_pressed(
         return;
     }
 
-    if !input_focus
+    if input_focus
         .get()
-        .is_some_and(|active_input| active_input == trigger.target)
+        .is_none_or(|active_input| active_input != trigger.entity)
     {
-        input_focus.set(trigger.target);
+        input_focus.set(trigger.entity);
     }
 
-    let rect = Rect::from_center_size(transform.translation().truncate(), node.size());
+    let rect = Rect::from_center_size(transform.translation, node.size());
 
     let position =
         trigger.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
@@ -196,7 +196,7 @@ pub(crate) fn on_text_input_pressed(
 
 /// Updates the scroll position of scrollable nodes in response to mouse input
 pub fn mouse_wheel_scroll(
-    mut mouse_wheel_events: EventReader<MouseWheel>,
+    mut mouse_wheel_events: MessageReader<MouseWheel>,
     hover_map: Res<HoverMap>,
     mut node_query: Query<(&mut TextInputBuffer, &TextInputNode, &mut TextInputQueue)>,
 ) {
@@ -239,13 +239,13 @@ pub struct MultiClickData {
 }
 
 pub fn on_multi_click_set_selection(
-    click: Trigger<Pointer<Click>>,
+    click: On<Pointer<Click>>,
     time: Res<Time>,
     mut text_input_nodes: Query<(
         &TextInputNode,
         &mut TextInputQueue,
         &mut TextInputBuffer,
-        &GlobalTransform,
+        &UiGlobalTransform,
         &ComputedNode,
     )>,
     mut multi_click_datas: Query<&mut MultiClickData>,
@@ -256,7 +256,7 @@ pub fn on_multi_click_set_selection(
         return;
     }
 
-    let entity = click.target();
+    let entity = click.entity;
 
     let Ok((input, mut queue, mut buffer, transform, node)) = text_input_nodes.get_mut(entity)
     else {
@@ -268,41 +268,40 @@ pub fn on_multi_click_set_selection(
     }
 
     let now = time.elapsed_secs();
-    if let Ok(mut multi_click_data) = multi_click_datas.get_mut(entity) {
-        if now - multi_click_data.last_click_time
+    if let Ok(mut multi_click_data) = multi_click_datas.get_mut(entity)
+        && now - multi_click_data.last_click_time
             <= MULTI_CLICK_PERIOD * multi_click_data.click_count as f32
-        {
-            let rect = Rect::from_center_size(transform.translation().truncate(), node.size());
+    {
+        let rect = Rect::from_center_size(transform.translation, node.size());
 
-            let position =
-                click.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
-            let mut editor = buffer
-                .editor
-                .borrow_with(&mut text_input_pipeline.font_system);
-            let scroll = editor.with_buffer(|buffer| buffer.scroll());
-            match multi_click_data.click_count {
-                1 => {
-                    multi_click_data.click_count += 1;
-                    multi_click_data.last_click_time = now;
+        let position =
+            click.pointer_location.position * node.inverse_scale_factor().recip() - rect.min;
+        let mut editor = buffer
+            .editor
+            .borrow_with(&mut text_input_pipeline.font_system);
+        let scroll = editor.with_buffer(|buffer| buffer.scroll());
+        match multi_click_data.click_count {
+            1 => {
+                multi_click_data.click_count += 1;
+                multi_click_data.last_click_time = now;
 
-                    queue.add(TextInputAction::Edit(TextInputEdit::DoubleClick {
-                        x: position.x as i32 + scroll.horizontal as i32,
-                        y: position.y as i32,
-                    }));
-                    return;
-                }
-                2 => {
-                    editor.action(Action::Motion(Motion::ParagraphStart));
-                    let cursor = editor.cursor();
-                    editor.set_selection(Selection::Normal(cursor));
-                    editor.action(Action::Motion(Motion::ParagraphEnd));
-                    if let Ok(mut entity) = commands.get_entity(entity) {
-                        entity.try_remove::<MultiClickData>();
-                    }
-                    return;
-                }
-                _ => (),
+                queue.add(TextInputAction::Edit(TextInputEdit::DoubleClick {
+                    x: position.x as i32 + scroll.horizontal as i32,
+                    y: position.y as i32,
+                }));
+                return;
             }
+            2 => {
+                editor.action(Action::Motion(Motion::ParagraphStart));
+                let cursor = editor.cursor();
+                editor.set_selection(Selection::Normal(cursor));
+                editor.action(Action::Motion(Motion::ParagraphEnd));
+                if let Ok(mut entity) = commands.get_entity(entity) {
+                    entity.try_remove::<MultiClickData>();
+                }
+                return;
+            }
+            _ => (),
         }
     }
     if let Ok(mut entity) = commands.get_entity(entity) {
@@ -313,8 +312,8 @@ pub fn on_multi_click_set_selection(
     }
 }
 
-pub fn on_move_clear_multi_click(move_: Trigger<Pointer<Move>>, mut commands: Commands) {
-    if let Ok(mut entity) = commands.get_entity(move_.target()) {
+pub fn on_move_clear_multi_click(move_: On<Pointer<Move>>, mut commands: Commands) {
+    if let Ok(mut entity) = commands.get_entity(move_.entity) {
         entity.try_remove::<MultiClickData>();
     }
 }
@@ -325,7 +324,7 @@ pub fn queue_text_input_action(
     overwrite_mode: &mut bool,
     command_pressed: &mut bool,
     keyboard_input: &KeyboardInput,
-    mut queue: impl FnMut(TextInputAction) -> (),
+    mut queue: impl FnMut(TextInputAction),
 ) {
     match keyboard_input.logical_key {
         Key::Shift => {
@@ -547,21 +546,21 @@ pub fn process_text_input_queues(
         &mut TextInputQueue,
     )>,
     mut text_input_pipeline: ResMut<TextInputPipeline>,
-    mut submit_writer: EventWriter<TextSubmitEvent>,
+    mut submit_writer: MessageWriter<SubmitText>,
     mut clipboard: ResMut<Clipboard>,
 ) {
-    let mut font_system = &mut text_input_pipeline.font_system;
+    let font_system = &mut text_input_pipeline.font_system;
 
     for (entity, node, mut buffer, mut actions_queue) in query.iter_mut() {
         let TextInputBuffer {
             editor, changes, ..
         } = &mut *buffer;
-        let mut editor = editor.borrow_with(&mut font_system);
+        let mut editor = editor.borrow_with(font_system);
         while let Some(action) = actions_queue.next() {
             match action {
                 TextInputAction::Submit => {
                     let text = editor.with_buffer(crate::get_text);
-                    submit_writer.write(TextSubmitEvent { entity, text });
+                    submit_writer.write(SubmitText { entity, text });
                     if node.clear_on_submit {
                         actions_queue.add_front(TextInputAction::Edit(TextInputEdit::Delete));
                         actions_queue.add_front(TextInputAction::Edit(TextInputEdit::SelectAll));
@@ -619,11 +618,11 @@ pub fn process_text_input_queues(
 }
 
 pub fn on_focused_keyboard_input(
-    trigger: Trigger<FocusedInput<KeyboardInput>>,
+    trigger: On<FocusedInput<KeyboardInput>>,
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
-    if let Ok((input, mut queue)) = query.get_mut(trigger.target()) {
+    if let Ok((input, mut queue)) = query.get_mut(trigger.focused_entity) {
         let TextInputGlobalState {
             shift,
             overwrite_mode,

@@ -2,7 +2,7 @@
 
 use bevy::{color::palettes::css::NAVY, input_focus::InputFocus, prelude::*};
 use bevy_ui_text_input::{
-    TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin, TextSubmitEvent,
+    SubmitText, TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin,
 };
 
 fn main() {
@@ -53,9 +53,9 @@ fn setup(mut commands: Commands, mut active_input: ResMut<InputFocus>) {
         .add_child(input_entity);
 }
 
-fn reciever(mut events: EventReader<TextSubmitEvent>) {
+fn reciever(mut events: MessageReader<SubmitText>) {
     for event in events.read() {
         let d: f64 = event.text.parse().unwrap();
-        println!("decimal: {}", d);
+        println!("decimal: {d}");
     }
 }
