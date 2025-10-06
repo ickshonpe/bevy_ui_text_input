@@ -12,6 +12,7 @@
 * The height of `TextInputNode`'s is automatically chosen to fit the font height and number of `lines` set in `TextInputMode`, within the constraints of the layout. If the `lines` value is less than or equal to zero, the text input
 fills the target node. 
 * Added `taffy` dependency for automatic height support.
+* Added new module `measure` with a `measure_lines` system that runs in `UiSystems::Content` and automatically updates the text input node's measure funcs as needed.
 
 ### 0.5.2
 * Fixed cargo description text.

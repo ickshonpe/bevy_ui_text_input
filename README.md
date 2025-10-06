@@ -41,6 +41,7 @@ cargo run --example text_input
 * Mouse wheel scrolling
 * Max characters limit
 * Double-click and triple-click to select words and paragraphs respectively
+* Responsive sizing
 
 #### Problems + Bugs
 * Scrolling can be glitchy if the line height isn't an exact divisor of the input box.
@@ -48,7 +49,6 @@ cargo run --example text_input
 
 #### Not supported (at least yet)
 * IME
-* Responsive sizing
 * Rich text
 * Syntax highlighting
 * World UI
