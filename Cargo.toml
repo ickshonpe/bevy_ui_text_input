@@ -3,14 +3,14 @@ name = "bevy_ui_text_input"
 keywords = ["bevy", "gamedev", "ui", "text", "input"]
 description = "Bevy UI text input plugin"
 categories = ["game-development", "gui", "text-editors"]
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/ickshonpe/bevy_ui_text_input"
 
 [dependencies]
-bevy = { version = "0.17.0-rc", features = ["bevy_asset", "bevy_ui"] }
+bevy = { version = "0.17.2", features = ["bevy_asset", "bevy_ui"] }
 sys-locale = "0.3.2"
 regex = "1.11.2"
 once_cell = "1.21.3"
