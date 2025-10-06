@@ -2,9 +2,13 @@
 
 ### 0.6.0
 
-* Updated to Bevy 0.17
+* Bevy 0.17 support.
 * `TextSubmitEvent` has been renamed to `SubmitEvent`
 * `TextInputQueue::next` is now accessed via its `Iterator` implementation.
+* `TextInputNode` no longer has a filter field. `TextInputFilter` is separate component.
+* Added `PositiveInteger`, `Alphanumeric` and `Custom` variants to `TextInputFilter`. The `Custom` field takes a boxed closure to use as a custom filter.
+* Removed the `regex` dependency.
+
 
 ### 0.5.2
 * Fixed cargo description text.
