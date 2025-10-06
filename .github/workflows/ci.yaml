@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
@@ -62,7 +62,7 @@ jobs:
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev
 
       - name: Check documentation
-        run: cargo doc --locked --workspace --profile ci --all-features --document-private-items --no-deps
+        run: cargo doc --workspace --profile ci --all-features --document-private-items --no-deps
 
   # Run Clippy lints.
   clippy-lints:
@@ -84,14 +84,14 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: ci
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Install build dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev
 
       - name: Run Clippy lints
-        run: cargo clippy --locked --workspace --all-targets --profile ci --all-features
+        run: cargo clippy --workspace --all-targets --profile ci --all-features
 
   # Run Bevy lints.
   bevy-lints:
@@ -106,7 +106,7 @@ jobs:
         uses: TheBevyFlock/bevy_cli/bevy_lint@lint-v0.4.0
         with:
           cache: true
-          save-cache-if: ${{ github.ref == 'refs/heads/main' }}
+          save-cache-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Restore Rust cache
         id: cache
@@ -120,7 +120,7 @@ jobs:
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev
 
       - name: Run Bevy lints
-        run: bevy_lint --locked --workspace --all-targets --profile ci --all-features
+        run: bevy_lint --workspace --all-targets --profile ci --all-features
 
   # Run tests.
   tests:
@@ -145,13 +145,13 @@ jobs:
         with:
           shared-key: test
           cache-directories: ${{ env.LD_LIBRARY_PATH }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Install build dependencies
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev
 
       - name: Run tests
-        run: cargo test --locked --workspace --all-targets --profile ci --no-fail-fast
+        run: cargo test --workspace --all-targets --profile ci --no-fail-fast
 
   # Check that the web build compiles.
   check-web:
@@ -176,11 +176,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: web-ci
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Install build dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev
 
       - name: Check web
-        run: cargo check --config 'profile.web.inherits="dev"' --profile ci --no-default-features --features dev --target wasm32-unknown-unknown
+        run: cargo check --config 'profile.web.inherits="dev"' --profile ci --no-default-features --target wasm32-unknown-unknown
