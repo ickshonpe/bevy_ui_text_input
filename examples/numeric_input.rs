@@ -24,7 +24,6 @@ fn setup(mut commands: Commands) {
             TextInputFilter::Integer,
             Node {
                 width: Val::Px(500.),
-                height: Val::Px(250.),
                 ..default()
             },
             BackgroundColor(NAVY.into()),

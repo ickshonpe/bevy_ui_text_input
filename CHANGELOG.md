@@ -8,7 +8,10 @@
 * `TextInputNode` no longer has a filter field. `TextInputFilter` is separate component.
 * Added `PositiveInteger`, `Alphanumeric` and `Custom` variants to `TextInputFilter`. The `Custom` field takes a boxed closure to use as a custom filter.
 * Removed the `regex` dependency.
-
+* The `Multiline` variant of `TextInputMode` now has a `lines: f32` field.
+* The height of `TextInputNode`'s is automatically chosen to fit the font height and number of `lines` set in `TextInputMode`, within the constraints of the layout. If the `lines` value is less than or equal to zero, the text input
+fills the target node. 
+* Added `taffy` dependency for automatic height support.
 
 ### 0.5.2
 * Fixed cargo description text.

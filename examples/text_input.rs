@@ -299,7 +299,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                                             cosmic_text::Wrap::Word => cosmic_text::Wrap::WordOrGlyph,
                                             cosmic_text::Wrap::WordOrGlyph => cosmic_text::Wrap::None,
                                         };
-                                        input.mode = TextInputMode::MultiLine { wrap };
+                                        input.mode = TextInputMode::MultiLine { wrap, lines: 0. };
                                     }
                                 },
                             )

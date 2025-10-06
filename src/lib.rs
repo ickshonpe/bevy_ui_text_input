@@ -1,6 +1,7 @@
 pub mod actions;
 pub mod clipboard;
 pub mod edit;
+pub mod measure;
 pub mod render;
 pub mod text_input_pipeline;
 
@@ -43,6 +44,8 @@ use text_input_pipeline::{
     text_input_prompt_system, text_input_system,
 };
 
+use crate::measure::measure_lines;
+
 pub struct TextInputPlugin;
 
 impl Plugin for TextInputPlugin {
@@ -55,6 +58,7 @@ impl Plugin for TextInputPlugin {
             .add_systems(
                 PostUpdate,
                 (
+                    measure_lines.in_set(UiSystems::Content),
                     remove_dropped_font_atlas_sets_from_text_input_pipeline
                         .before(AssetEventSystems),
                     (
@@ -170,10 +174,17 @@ pub struct SubmitText {
 pub enum TextInputMode {
     /// Scrolling text input
     /// Submit on shift-enter
-    MultiLine { wrap: Wrap },
+    MultiLine {
+        wrap: Wrap,
+        // The number of lines the buffer will display at once.
+        // Limited by the size of the target.
+        // If equal to or less than 0, will fill the target space.
+        lines: f32,
+    },
     /// Single line text input
     /// Scrolls horizontally
     /// Submit on enter
+    /// Height automatically set to fit
     SingleLine,
 }
 
@@ -254,6 +265,7 @@ impl Default for TextInputMode {
     fn default() -> Self {
         Self::MultiLine {
             wrap: Wrap::WordOrGlyph,
+            lines: 0.,
         }
     }
 }
@@ -261,7 +273,7 @@ impl Default for TextInputMode {
 impl TextInputMode {
     pub fn wrap(&self) -> Wrap {
         match self {
-            TextInputMode::MultiLine { wrap } => *wrap,
+            TextInputMode::MultiLine { wrap, .. } => *wrap,
             _ => Wrap::None,
         }
     }
