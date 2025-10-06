@@ -37,8 +37,6 @@ use edit::{
     on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
     process_text_input_queues,
 };
-use once_cell::sync::Lazy;
-use regex::Regex;
 use render::{extract_text_input_nodes, extract_text_input_prompts};
 use text_input_pipeline::{
     TextInputPipeline, remove_dropped_font_atlas_sets_from_text_input_pipeline,
@@ -182,9 +180,13 @@ pub enum TextInputMode {
     SingleLine,
 }
 
-/// Filter for text input
-#[derive(Copy, Clone, Debug, PartialEq)]
+/// Any actions that modify a text input's text so that it fails
+/// to pass the filter are not applied.
+#[derive(Component)]
 pub enum TextInputFilter {
+    /// Positive integer input
+    /// accepts only digits
+    PositiveInteger,
     /// Integer input
     /// accepts only digits and a leading sign
     Integer,
@@ -194,45 +196,60 @@ pub enum TextInputFilter {
     /// Hexadecimal input
     /// accepts only `0-9`, `a-f` and `A-F`
     Hex,
+    /// Alphanumeric input
+    /// accepts only `0-9`, `a-z` and `A-Z`
+    Alphanumeric,
+    /// Custom filter
+    Custom(Box<dyn Fn(&str) -> bool + Send + Sync>),
 }
 
-static INTEGER_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d+$").unwrap());
-static DECIMAL_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^-?$|^-?\d*\.?\d*$").unwrap());
+impl core::fmt::Debug for TextInputFilter {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::PositiveInteger => f.write_str("PositiveInteger"),
+            Self::Integer => f.write_str("Integer"),
+            Self::Decimal => f.write_str("Decimal"),
+            Self::Hex => f.write_str("Hex"),
+            Self::Alphanumeric => f.write_str("Alphanumeric"),
+            Self::Custom(_) => f.write_str("Custom"),
+        }
+    }
+}
 
 impl TextInputFilter {
-    pub fn regex(&self) -> Option<&regex::Regex> {
+    /// Returns true if the text passes the filter
+    pub fn is_match(&self, text: &str) -> bool {
+        // Always passes if the input is empty unless using a custom filter
+        if text.is_empty() && !matches!(self, Self::Custom(_)) {
+            return true;
+        }
+
         match self {
-            TextInputFilter::Integer => Some(&INTEGER_REGEX),
-            TextInputFilter::Decimal => Some(&DECIMAL_REGEX),
-            TextInputFilter::Hex => None,
+            TextInputFilter::PositiveInteger => text.chars().all(|c| c.is_ascii_digit()),
+            TextInputFilter::Integer => text
+                .strip_prefix('-')
+                .unwrap_or(text)
+                .chars()
+                .all(|c| c.is_ascii_digit()),
+            TextInputFilter::Decimal => text
+                .strip_prefix('-')
+                .unwrap_or(text)
+                .chars()
+                .try_fold(true, |is_int, c| match c {
+                    '.' if is_int => Ok(false),
+                    c if c.is_ascii_digit() => Ok(is_int),
+                    _ => Err(()),
+                })
+                .is_ok(),
+            TextInputFilter::Hex => text.chars().all(|c| c.is_ascii_hexdigit()),
+            TextInputFilter::Alphanumeric => text.chars().all(|c| c.is_ascii_alphanumeric()),
+            TextInputFilter::Custom(is_match) => is_match(text),
         }
     }
 
-    fn is_match_char(&self, ch: char) -> bool {
-        match self {
-            TextInputFilter::Integer => {
-                // Allow only numeric characters
-                ch.is_ascii_digit() || ch == '-'
-            }
-            TextInputFilter::Hex => {
-                // Allow hexadecimal characters (0-9, a-f, A-F)
-                ch.is_ascii_hexdigit()
-            }
-            TextInputFilter::Decimal => {
-                // Allow numeric characters and a single decimal point
-                ch.is_ascii_digit() || ch == '.' || ch == '-'
-            }
-        }
-    }
-
-    fn is_match(self, text: &str) -> bool {
-        if let Some(regex) = self.regex() {
-            // If a regex is defined, use it to validate the entire text
-            regex.is_match(text)
-        } else {
-            // Otherwise, check each character against the filter
-            text.chars().all(|ch| self.is_match_char(ch))
-        }
+    /// Create a custom filter
+    pub fn custom(filter_fn: impl Fn(&str) -> bool + Send + Sync + 'static) -> Self {
+        Self::Custom(Box::new(filter_fn))
     }
 }
 
