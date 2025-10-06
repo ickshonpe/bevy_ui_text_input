@@ -1,5 +1,6 @@
 use crate::SubmitText;
 use crate::TextInputBuffer;
+use crate::TextInputFilter;
 use crate::TextInputGlobalState;
 use crate::TextInputMode;
 use crate::TextInputNode;
@@ -544,6 +545,7 @@ pub fn process_text_input_queues(
         &TextInputNode,
         &mut TextInputBuffer,
         &mut TextInputQueue,
+        Option<&TextInputFilter>,
     )>,
     mut text_input_pipeline: ResMut<TextInputPipeline>,
     mut submit_writer: MessageWriter<SubmitText>,
@@ -551,7 +553,7 @@ pub fn process_text_input_queues(
 ) {
     let font_system = &mut text_input_pipeline.font_system;
 
-    for (entity, node, mut buffer, mut actions_queue) in query.iter_mut() {
+    for (entity, node, mut buffer, mut actions_queue, maybe_filter) in query.iter_mut() {
         let TextInputBuffer {
             editor, changes, ..
         } = &mut *buffer;
@@ -574,7 +576,7 @@ pub fn process_text_input_queues(
                             &mut editor,
                             changes,
                             node.max_chars,
-                            &node.filter,
+                            maybe_filter,
                         );
                     }
                 }
@@ -594,7 +596,7 @@ pub fn process_text_input_queues(
                                 &mut editor,
                                 changes,
                                 node.max_chars,
-                                &node.filter,
+                                maybe_filter,
                             );
                         }
                     } else {
@@ -609,7 +611,7 @@ pub fn process_text_input_queues(
                         &mut editor,
                         changes,
                         node.max_chars,
-                        &node.filter,
+                        maybe_filter,
                     );
                 }
             }

@@ -104,8 +104,6 @@ pub struct TextInputNode {
     pub clear_on_submit: bool,
     /// Type of text input
     pub mode: TextInputMode,
-    /// Optional filter for the text input
-    pub filter: Option<TextInputFilter>,
     /// Maximum number of characters that can entered into the input buffer
     pub max_chars: Option<usize>,
     /// Should overwrite mode be available
@@ -125,7 +123,6 @@ impl Default for TextInputNode {
         Self {
             clear_on_submit: true,
             mode: TextInputMode::default(),
-            filter: None,
             max_chars: None,
             allow_overwrite_mode: true,
             is_enabled: true,

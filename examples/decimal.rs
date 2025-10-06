@@ -21,10 +21,10 @@ fn setup(mut commands: Commands, mut active_input: ResMut<InputFocus>) {
         .spawn((
             TextInputNode {
                 mode: TextInputMode::SingleLine,
-                filter: Some(TextInputFilter::Decimal),
                 max_chars: Some(10),
                 ..Default::default()
             },
+            TextInputFilter::Decimal,
             TextFont {
                 font_size: 20.,
                 ..Default::default()

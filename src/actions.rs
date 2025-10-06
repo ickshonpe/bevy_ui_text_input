@@ -84,7 +84,7 @@ pub fn apply_text_input_edit(
     editor: &mut BorrowedWithFontSystem<'_, Editor<'static>>,
     changes: &mut cosmic_undo_2::Commands<cosmic_text::Change>,
     max_chars: Option<usize>,
-    filter_mode: &Option<TextInputFilter>,
+    filter_mode: Option<&TextInputFilter>,
 ) {
     editor.start_change();
 

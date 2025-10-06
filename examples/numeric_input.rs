@@ -18,10 +18,10 @@ fn setup(mut commands: Commands) {
         .spawn((
             TextInputNode {
                 mode: TextInputMode::SingleLine,
-                filter: Some(TextInputFilter::Integer),
                 max_chars: Some(5),
                 ..Default::default()
             },
+            TextInputFilter::Integer,
             Node {
                 width: Val::Px(500.),
                 height: Val::Px(250.),
