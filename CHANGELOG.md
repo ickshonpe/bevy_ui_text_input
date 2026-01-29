@@ -1,7 +1,27 @@
 ## Changelog
 
-### 0.5.0
+### 0.7.0
+
+* Bevy 0.18 support.
+
+### 0.6.0
+
+* Bevy 0.17 support.
+* `TextSubmitEvent` has been renamed to `SubmitEvent`
+* `TextInputQueue::next` is now accessed via its `Iterator` implementation.
+* `TextInputNode` no longer has a filter field. `TextInputFilter` is separate component.
+* Added `PositiveInteger`, `Alphanumeric` and `Custom` variants to `TextInputFilter`. The `Custom` field takes a boxed closure to use as a custom filter.
+* Removed the `regex` dependency.
+
+
+### 0.5.2
+* Fixed cargo description text.
+
+### 0.5.1
 * Fixed compilation errors on wasm (thanks to [fallible-algebra](https://github.com/fallible-algebra)).
+
+### 0.5.0
+* ~~Fixed compilation errors on wasm (thanks to [fallible-algebra](https://github.com/fallible-algebra)).~~
 * Text input prompts now respect their `TextInputNode`'s justification.
 * `TextInputNode`'s `align` field has been renamed to `justification` and its type has been changed to `JustifyText`.
 * New resource `TextInputGlobalState` that tracks overwrite mode and the state of the modifier keys.
@@ -17,9 +37,9 @@
         },
     )
     ```
-    
+
 ### 0.4.0
-* Improved performance. Text input layouts should only be regenerated after edits now. 
+* Improved performance. Text input layouts should only be regenerated after edits now.
 * The `ActiveTextInput` resource is removed. Use `InputFocus` to set the active text input.
 * Fixed command binds so that they work when capslock is on.
 * `TextInputNode`s are unfocused when despawned.
@@ -33,4 +53,4 @@ co-authored by [databasedav](https://github.com/databasedav)
 * Bevy 0.16 support.
 
 ### 0.2.0
-* New `line_height` parameter on `TextInputNode`. 
+* New `line_height` parameter on `TextInputNode`.

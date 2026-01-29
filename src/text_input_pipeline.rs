@@ -8,7 +8,7 @@ use bevy::asset::AssetEvent;
 use bevy::asset::AssetId;
 use bevy::asset::Assets;
 use bevy::ecs::change_detection::DetectChanges;
-use bevy::ecs::event::EventReader;
+use bevy::ecs::message::MessageReader;
 use bevy::ecs::resource::Resource;
 use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
@@ -21,6 +21,8 @@ use bevy::math::UVec2;
 use bevy::math::Vec2;
 use bevy::platform::collections::HashMap;
 use bevy::text::Font;
+use bevy::text::FontAtlas;
+use bevy::text::FontAtlasKey;
 use bevy::text::FontAtlasSet;
 use bevy::text::FontSmoothing;
 use bevy::text::LineBreak;
@@ -28,12 +30,13 @@ use bevy::text::LineHeight;
 use bevy::text::TextBounds;
 use bevy::text::TextError;
 use bevy::text::TextFont;
-use bevy::text::YAxisOrientation;
-use bevy::text::cosmic_text;
-use bevy::text::cosmic_text::Buffer;
-use bevy::text::cosmic_text::Edit;
-use bevy::text::cosmic_text::Metrics;
+use bevy::text::add_glyph_to_atlas;
+use bevy::text::get_glyph_atlas_info;
 use bevy::ui::ComputedNode;
+use cosmic_text;
+use cosmic_text::Buffer;
+use cosmic_text::Edit;
+use cosmic_text::Metrics;
 use std::sync::Arc;
 
 #[derive(Resource)]
@@ -118,22 +121,28 @@ pub fn text_input_system(
     mut text_query: Query<(
         Ref<ComputedNode>,
         Ref<TextFont>,
+        Ref<LineHeight>,
         &mut TextInputLayoutInfo,
         &mut TextInputBuffer,
         Ref<TextInputNode>,
     )>,
 ) {
-    for (node, text_font, text_input_layout_info, mut editor, input) in text_query.iter_mut() {
+    for (node, text_font, line_height, text_input_layout_info, mut editor, input) in
+        text_query.iter_mut()
+    {
         let layout_info = text_input_layout_info.into_inner();
-        let y_axis_orientation = YAxisOrientation::TopToBottom;
-        if editor.needs_update || text_font.is_changed() || node.is_changed() || input.is_changed()
+        if editor.needs_update
+            || text_font.is_changed()
+            || line_height.is_changed()
+            || node.is_changed()
+            || input.is_changed()
         {
             let bounds = TextBounds {
                 width: Some(node.size().x),
                 height: Some(node.size().y),
             };
 
-            let line_height = match text_font.line_height {
+            let line_height = match *line_height {
                 LineHeight::Px(h) => h,
                 LineHeight::RelativeToFont(r) => r * text_font.font_size,
             };
@@ -170,11 +179,14 @@ pub fn text_input_system(
                     .metrics(metrics);
 
                 let text = crate::get_text(buffer);
-                buffer.set_text(font_system, &text, attrs, cosmic_text::Shaping::Advanced);
                 let align = Some(input.justification.into());
-                for buffer_line in buffer.lines.iter_mut() {
-                    buffer_line.set_align(align);
-                }
+                buffer.set_text(
+                    font_system,
+                    &text,
+                    &attrs,
+                    cosmic_text::Shaping::Advanced,
+                    align,
+                );
 
                 Ok(())
             });
@@ -206,18 +218,17 @@ pub fn text_input_system(
             let result = editor.with_buffer_mut(|buffer| {
                 let box_size = buffer_dimensions(buffer);
                 let result = buffer.layout_runs().try_for_each(|run| {
-                    if let Some(selection) = selection {
-                        if let Some((x0, w)) = run.highlight(selection.0, selection.1) {
-                            let y0 = run.line_top;
-                            let y1 = y0 + run.line_height;
-                            let x1 = x0 + w;
-                            let r = Rect::new(x0, y0, x1, y1);
-                            selection_rects.push(r);
-                        }
+                    if let Some(selection) = selection
+                        && let Some((x0, w)) = run.highlight(selection.0, selection.1)
+                    {
+                        let y0 = run.line_top;
+                        let y1 = y0 + run.line_height;
+                        let x1 = x0 + w;
+                        let r = Rect::new(x0, y0, x1, y1);
+                        selection_rects.push(r);
                     }
 
-                    let result = run
-                        .glyphs
+                    run.glyphs
                         .iter()
                         .map(move |layout_glyph| (layout_glyph, run.line_y, run.line_i))
                         .try_for_each(|(layout_glyph, line_y, line_i)| {
@@ -254,22 +265,38 @@ pub fn text_input_system(
 
                             let physical_glyph = layout_glyph.physical((0., 0.), 1.);
 
-                            let atlas_info = font_atlas_set
-                                .get_glyph_atlas_info(physical_glyph.cache_key, font_smoothing)
-                                .map(Ok)
-                                .unwrap_or_else(|| {
-                                    font_atlas_set.add_glyph_to_atlas(
-                                        &mut texture_atlases,
+                            let font_atlases = font_atlas_set
+                                .entry(FontAtlasKey(
+                                    font_id,
+                                    physical_glyph.cache_key.font_size_bits,
+                                    font_smoothing,
+                                ))
+                                .or_insert_with(|| {
+                                    vec![FontAtlas::new(
                                         &mut textures,
-                                        font_system,
-                                        swash_cache,
-                                        layout_glyph,
+                                        &mut texture_atlases,
+                                        UVec2::splat(512),
                                         font_smoothing,
-                                    )
-                                })?;
+                                    )]
+                                });
+
+                            let atlas_info =
+                                get_glyph_atlas_info(font_atlases, physical_glyph.cache_key)
+                                    .map(Ok)
+                                    .unwrap_or_else(|| {
+                                        add_glyph_to_atlas(
+                                            font_atlases,
+                                            &mut texture_atlases,
+                                            &mut textures,
+                                            font_system,
+                                            swash_cache,
+                                            layout_glyph,
+                                            font_smoothing,
+                                        )
+                                    })?;
 
                             let texture_atlas =
-                                texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+                                texture_atlases.get(atlas_info.texture_atlas).unwrap();
                             let location = atlas_info.location;
                             let glyph_rect = texture_atlas.textures[location.glyph_index];
                             let left = location.offset.x as f32;
@@ -280,10 +307,6 @@ pub fn text_input_system(
                             let x = glyph_size.x as f32 / 2.0 + left + physical_glyph.x as f32;
                             let y = line_y.round() + physical_glyph.y as f32 - top
                                 + glyph_size.y as f32 / 2.0;
-                            let y = match y_axis_orientation {
-                                YAxisOrientation::TopToBottom => y,
-                                YAxisOrientation::BottomToTop => box_size.y - y,
-                            };
 
                             let position = Vec2::new(x, y);
 
@@ -298,9 +321,7 @@ pub fn text_input_system(
                             };
                             layout_info.glyphs.push(pos_glyph);
                             Ok(())
-                        });
-
-                    result
+                        })
                 });
 
                 // Check result.
@@ -314,12 +335,18 @@ pub fn text_input_system(
                 Err(TextError::NoSuchFont) => {
                     // There was an error processing the text layout, try again next frame
                 }
-                Err(e @ (TextError::FailedToAddGlyph(_) | TextError::FailedToGetGlyphImage(_))) => {
+                Err(
+                    e @ (TextError::FailedToAddGlyph(_)
+                    | TextError::FailedToGetGlyphImage(_)
+                    | TextError::MissingAtlasLayout
+                    | TextError::MissingAtlasTexture
+                    | TextError::InconsistentAtlasState),
+                ) => {
                     panic!("Fatal error when processing text: {e}.");
                 }
                 Ok(()) => {
-                    layout_info.size.x = layout_info.size.x * node.inverse_scale_factor();
-                    layout_info.size.y = layout_info.size.y * node.inverse_scale_factor();
+                    layout_info.size.x *= node.inverse_scale_factor();
+                    layout_info.size.y *= node.inverse_scale_factor();
                     editor.set_redraw(false);
                 }
             }
@@ -335,22 +362,22 @@ pub fn text_input_prompt_system(
     mut text_query: Query<(
         Ref<ComputedNode>,
         Ref<TextFont>,
+        Ref<LineHeight>,
         &mut TextInputPromptLayoutInfo,
         &mut TextInputBuffer,
         Ref<TextInputNode>,
         Ref<TextInputPrompt>,
     )>,
 ) {
-    for (node, text_font, text_input_layout_info, mut editor, input, prompt) in
+    for (node, text_font, line_height, text_input_layout_info, mut editor, input, prompt) in
         text_query.iter_mut()
     {
         let layout_info = text_input_layout_info.into_inner();
-        let y_axis_orientation = YAxisOrientation::TopToBottom;
         if prompt.is_changed()
             || input.is_changed()
             || editor.prompt_buffer.is_none()
             || layout_info.glyphs.is_empty()
-            || text_font.is_changed() && prompt.font.is_none()
+            || (text_font.is_changed() || line_height.is_changed()) && prompt.font.is_none()
             || node.is_changed()
         {
             layout_info.glyphs.clear();
@@ -372,7 +399,7 @@ pub fn text_input_prompt_system(
 
             let font = prompt.font.as_ref().unwrap_or(text_font.as_ref());
 
-            let line_height = match text_font.line_height {
+            let line_height = match *line_height {
                 LineHeight::Px(h) => h,
                 LineHeight::RelativeToFont(r) => r * font.font_size,
             };
@@ -395,7 +422,7 @@ pub fn text_input_prompt_system(
                 height: Some(node.size().y),
             };
 
-            let face_info = load_font_to_fontdb(&font, font_system, map_handle_to_font_id, &fonts);
+            let face_info = load_font_to_fontdb(font, font_system, map_handle_to_font_id, &fonts);
 
             buffer.set_size(font_system, bounds.width, bounds.height);
 
@@ -417,24 +444,20 @@ pub fn text_input_prompt_system(
                 .weight(face_info.weight)
                 .metrics(metrics);
 
+            let align = Some(input.justification.into());
             buffer.set_text(
                 font_system,
                 &prompt.text,
-                attrs,
+                &attrs,
                 cosmic_text::Shaping::Advanced,
+                align,
             );
-
-            let align = Some(input.justification.into());
-            for buffer_line in buffer.lines.iter_mut() {
-                buffer_line.set_align(align);
-            }
 
             buffer.shape_until_scroll(font_system, false);
 
             let box_size = buffer_dimensions(buffer);
             let result = buffer.layout_runs().try_for_each(|run| {
-                let result = run
-                    .glyphs
+                run.glyphs
                     .iter()
                     .map(move |layout_glyph| (layout_glyph, run.line_y, run.line_i))
                     .try_for_each(|(layout_glyph, line_y, line_i)| {
@@ -470,21 +493,37 @@ pub fn text_input_prompt_system(
 
                         let physical_glyph = layout_glyph.physical((0., 0.), 1.);
 
-                        let atlas_info = font_atlas_set
-                            .get_glyph_atlas_info(physical_glyph.cache_key, font_smoothing)
-                            .map(Ok)
-                            .unwrap_or_else(|| {
-                                font_atlas_set.add_glyph_to_atlas(
-                                    &mut texture_atlases,
+                        let font_atlases = font_atlas_set
+                            .entry(FontAtlasKey(
+                                font_id,
+                                physical_glyph.cache_key.font_size_bits,
+                                font_smoothing,
+                            ))
+                            .or_insert_with(|| {
+                                vec![FontAtlas::new(
                                     &mut textures,
-                                    font_system,
-                                    swash_cache,
-                                    layout_glyph,
+                                    &mut texture_atlases,
+                                    UVec2::splat(512),
                                     font_smoothing,
-                                )
-                            })?;
+                                )]
+                            });
 
-                        let texture_atlas = texture_atlases.get(&atlas_info.texture_atlas).unwrap();
+                        let atlas_info =
+                            get_glyph_atlas_info(font_atlases, physical_glyph.cache_key)
+                                .map(Ok)
+                                .unwrap_or_else(|| {
+                                    add_glyph_to_atlas(
+                                        font_atlases,
+                                        &mut texture_atlases,
+                                        &mut textures,
+                                        font_system,
+                                        swash_cache,
+                                        layout_glyph,
+                                        font_smoothing,
+                                    )
+                                })?;
+
+                        let texture_atlas = texture_atlases.get(atlas_info.texture_atlas).unwrap();
                         let location = atlas_info.location;
                         let glyph_rect = texture_atlas.textures[location.glyph_index];
                         let left = location.offset.x as f32;
@@ -495,10 +534,6 @@ pub fn text_input_prompt_system(
                         let x = glyph_size.x as f32 / 2.0 + left + physical_glyph.x as f32;
                         let y = line_y.round() + physical_glyph.y as f32 - top
                             + glyph_size.y as f32 / 2.0;
-                        let y = match y_axis_orientation {
-                            YAxisOrientation::TopToBottom => y,
-                            YAxisOrientation::BottomToTop => box_size.y - y,
-                        };
 
                         let position = Vec2::new(x, y);
 
@@ -513,9 +548,7 @@ pub fn text_input_prompt_system(
                         };
                         layout_info.glyphs.push(pos_glyph);
                         Ok(())
-                    });
-
-                result
+                    })
             });
 
             layout_info.size = box_size;
@@ -525,12 +558,18 @@ pub fn text_input_prompt_system(
                     editor.prompt_buffer = None;
                     // There was an error processing the text layout, try again next frame
                 }
-                Err(e @ (TextError::FailedToAddGlyph(_) | TextError::FailedToGetGlyphImage(_))) => {
+                Err(
+                    e @ (TextError::FailedToAddGlyph(_)
+                    | TextError::FailedToGetGlyphImage(_)
+                    | TextError::MissingAtlasLayout
+                    | TextError::MissingAtlasTexture
+                    | TextError::InconsistentAtlasState),
+                ) => {
                     panic!("Fatal error when processing text: {e}.");
                 }
                 Ok(()) => {
-                    layout_info.size.x = layout_info.size.x * node.inverse_scale_factor();
-                    layout_info.size.y = layout_info.size.y * node.inverse_scale_factor();
+                    layout_info.size.x *= node.inverse_scale_factor();
+                    layout_info.size.y *= node.inverse_scale_factor();
                 }
             }
         }
@@ -539,7 +578,7 @@ pub fn text_input_prompt_system(
 
 pub fn remove_dropped_font_atlas_sets_from_text_input_pipeline(
     mut text_input_pipeline: ResMut<TextInputPipeline>,
-    mut font_events: EventReader<AssetEvent<Font>>,
+    mut font_events: MessageReader<AssetEvent<Font>>,
 ) {
     for event in font_events.read() {
         if let AssetEvent::Removed { id } = event {

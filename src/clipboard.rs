@@ -48,7 +48,7 @@ pub struct Clipboard(Option<arboard::Clipboard>);
 #[cfg(unix)]
 impl Default for Clipboard {
     fn default() -> Self {
-        { Self(arboard::Clipboard::new().ok()) }
+        Self(arboard::Clipboard::new().ok())
     }
 }
 

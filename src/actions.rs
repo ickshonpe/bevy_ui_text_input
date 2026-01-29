@@ -1,9 +1,9 @@
-use bevy::text::cosmic_text::Action;
-use bevy::text::cosmic_text::BorrowedWithFontSystem;
-use bevy::text::cosmic_text::Edit;
-use bevy::text::cosmic_text::Editor;
-use bevy::text::cosmic_text::Motion;
-use bevy::text::cosmic_text::Selection;
+use cosmic_text::Action;
+use cosmic_text::BorrowedWithFontSystem;
+use cosmic_text::Edit;
+use cosmic_text::Editor;
+use cosmic_text::Motion;
+use cosmic_text::Selection;
 
 use crate::TextInputFilter;
 use crate::clipboard::ClipboardRead;
@@ -83,9 +83,9 @@ pub enum TextInputEdit {
 pub fn apply_text_input_edit(
     edit: TextInputEdit,
     editor: &mut BorrowedWithFontSystem<'_, Editor<'static>>,
-    changes: &mut cosmic_undo_2::Commands<bevy::text::cosmic_text::Change>,
+    changes: &mut cosmic_undo_2::Commands<cosmic_text::Change>,
     max_chars: Option<usize>,
-    filter_mode: &Option<TextInputFilter>,
+    filter_mode: Option<&TextInputFilter>,
 ) {
     editor.start_change();
 
@@ -124,7 +124,7 @@ pub fn apply_text_input_edit(
             editor.action(Action::Indent);
         }
         TextInputEdit::Unindent => {
-            editor.action(Action::Indent);
+            editor.action(Action::Unindent);
         }
         TextInputEdit::Click { x, y } => {
             editor.action(Action::Click { x, y });
@@ -139,7 +139,10 @@ pub fn apply_text_input_edit(
             editor.action(Action::Drag { x, y });
         }
         TextInputEdit::Scroll { lines } => {
-            editor.action(Action::Scroll { lines });
+            let line_height = editor.with_buffer(|buffer| buffer.metrics().line_height);
+            editor.action(Action::Scroll {
+                pixels: lines as f32 * line_height,
+            });
         }
         TextInputEdit::Paste(text) => {
             if max_chars.is_none_or(|max| editor.with_buffer(buffer_len) + text.len() <= max) {

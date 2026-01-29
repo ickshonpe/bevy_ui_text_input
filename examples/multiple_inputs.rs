@@ -7,8 +7,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_ui_text_input::{
-    TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
-    TextSubmitEvent,
+    SubmitText, TextInputFilter, TextInputMode, TextInputNode, TextInputPlugin, TextInputPrompt,
 };
 
 fn main() {
@@ -55,34 +54,36 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                 })
                 .with_children(|commands| {
                     for (filter, prompt) in filters {
-                        let input_entity = commands
-                            .spawn((
-                                TextInputNode {
-                                    mode: TextInputMode::SingleLine,
-                                    filter,
-                                    max_chars: Some(20),
-                                    ..Default::default()
-                                },
-                                TextFont {
-                                    font: assets.load("fonts/FiraMono-Medium.ttf"),
-                                    font_size: 25.,
-                                    ..Default::default()
-                                },
-                                TextInputPrompt::new(prompt),
-                                TextColor(LIGHT_GOLDENROD_YELLOW.into()),
-                                Node {
-                                    width: Val::Px(250.),
-                                    height: Val::Px(30.),
-                                    ..default()
-                                },
-                                BackgroundColor(Color::BLACK),
-                                Outline {
-                                    width: Val::Px(2.),
-                                    offset: Val::Px(2.),
-                                    color: GREY.into(),
-                                },
-                            ))
-                            .id();
+                        let mut input = commands.spawn((
+                            TextInputNode {
+                                mode: TextInputMode::SingleLine,
+                                max_chars: Some(20),
+                                ..Default::default()
+                            },
+                            TextFont {
+                                font: assets.load("fonts/FiraMono-Medium.ttf"),
+                                font_size: 25.,
+                                ..Default::default()
+                            },
+                            TextInputPrompt::new(prompt),
+                            TextColor(LIGHT_GOLDENROD_YELLOW.into()),
+                            Node {
+                                width: Val::Px(250.),
+                                height: Val::Px(30.),
+                                ..default()
+                            },
+                            BackgroundColor(Color::BLACK),
+                            Outline {
+                                width: Val::Px(2.),
+                                offset: Val::Px(2.),
+                                color: GREY.into(),
+                            },
+                        ));
+                        if let Some(filter) = filter {
+                            input.insert(filter);
+                        }
+
+                        let input_entity = input.id();
 
                         let output_entity = commands.spawn(Text::default()).id();
 
@@ -95,7 +96,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
 
 fn update(
     input_focus: Res<InputFocus>,
-    mut events: EventReader<TextSubmitEvent>,
+    mut events: MessageReader<SubmitText>,
     map: Res<InputMap>,
     mut text_query: Query<&mut Text>,
     mut outline_query: Query<(Entity, &mut Outline)>,
