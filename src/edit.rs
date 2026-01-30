@@ -8,7 +8,7 @@ use crate::TextInputQueue;
 use crate::TextInputStyle;
 use crate::actions::TextInputAction;
 use crate::actions::TextInputEdit;
-use crate::actions::apply_text_input_edit;
+use crate::actions::apply_text_input_edit_and_trigger_observers;
 use crate::clipboard::Clipboard;
 use crate::text_input_pipeline::TextInputPipeline;
 use bevy::ecs::component::Component;
@@ -540,6 +540,7 @@ pub fn cursor_blink_system(
 }
 
 pub fn process_text_input_queues(
+    mut commands: Commands,
     mut query: Query<(
         Entity,
         &TextInputNode,
@@ -558,11 +559,29 @@ pub fn process_text_input_queues(
             editor, changes, ..
         } = &mut *buffer;
         let mut editor = editor.borrow_with(font_system);
+        let mut apply_edit =
+            |commands: &mut Commands, editor: &mut _, text_input_edit: TextInputEdit| {
+                apply_text_input_edit_and_trigger_observers(
+                    commands,
+                    entity,
+                    text_input_edit,
+                    editor,
+                    changes,
+                    node.max_chars,
+                    maybe_filter,
+                );
+            };
         while let Some(action) = actions_queue.next() {
             match action {
                 TextInputAction::Submit => {
                     let text = editor.with_buffer(crate::get_text);
-                    submit_writer.write(SubmitText { entity, text });
+                    submit_writer.write(SubmitText {
+                        entity,
+                        text: text.clone(),
+                    });
+                    commands
+                        .entity(entity)
+                        .trigger(|entity| SubmitText { entity, text });
                     if node.clear_on_submit {
                         actions_queue.add_front(TextInputAction::Edit(TextInputEdit::Delete));
                         actions_queue.add_front(TextInputAction::Edit(TextInputEdit::SelectAll));
@@ -571,13 +590,7 @@ pub fn process_text_input_queues(
                 TextInputAction::Cut => {
                     if let Some(text) = editor.copy_selection() {
                         let _ = clipboard.set_text(text);
-                        apply_text_input_edit(
-                            TextInputEdit::Delete,
-                            &mut editor,
-                            changes,
-                            node.max_chars,
-                            maybe_filter,
-                        );
+                        apply_edit(&mut commands, &mut editor, TextInputEdit::Delete);
                     }
                 }
                 TextInputAction::Copy => {
@@ -591,13 +604,7 @@ pub fn process_text_input_queues(
                 TextInputAction::PasteDeferred(mut clipboard_read) => {
                     if let Some(text) = clipboard_read.poll_result() {
                         if let Ok(text) = text {
-                            apply_text_input_edit(
-                                TextInputEdit::Paste(text),
-                                &mut editor,
-                                changes,
-                                node.max_chars,
-                                maybe_filter,
-                            );
+                            apply_edit(&mut commands, &mut editor, TextInputEdit::Paste(text));
                         }
                     } else {
                         // Add the clipboard read back to the queue, process it and the remaining actions next frame.
@@ -606,13 +613,7 @@ pub fn process_text_input_queues(
                     }
                 }
                 TextInputAction::Edit(text_input_edit) => {
-                    apply_text_input_edit(
-                        text_input_edit,
-                        &mut editor,
-                        changes,
-                        node.max_chars,
-                        maybe_filter,
-                    );
+                    apply_edit(&mut commands, &mut editor, text_input_edit);
                 }
             }
         }

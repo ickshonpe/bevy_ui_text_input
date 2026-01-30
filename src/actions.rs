@@ -1,3 +1,5 @@
+use bevy::ecs::entity::Entity;
+use bevy::ecs::system::Commands;
 use cosmic_text::Action;
 use cosmic_text::BorrowedWithFontSystem;
 use cosmic_text::Edit;
@@ -5,6 +7,7 @@ use cosmic_text::Editor;
 use cosmic_text::Motion;
 use cosmic_text::Selection;
 
+use crate::ModifyText;
 use crate::TextInputFilter;
 use crate::clipboard::ClipboardRead;
 use crate::edit::apply_action;
@@ -80,13 +83,13 @@ pub enum TextInputEdit {
 }
 
 /// apply a single `TextInputEdit` to a text editor buffer
-pub fn apply_text_input_edit(
+fn apply_text_input_edit(
     edit: TextInputEdit,
     editor: &mut BorrowedWithFontSystem<'_, Editor<'static>>,
     changes: &mut cosmic_undo_2::Commands<cosmic_text::Change>,
     max_chars: Option<usize>,
     filter_mode: Option<&TextInputFilter>,
-) {
+) -> Option<String> {
     editor.start_change();
 
     match edit {
@@ -176,22 +179,41 @@ pub fn apply_text_input_edit(
     }
 
     let Some(mut change) = editor.finish_change() else {
-        return;
+        return None;
     };
 
     if change.items.is_empty() {
-        return;
+        return None;
     }
 
+    let text = editor.with_buffer(crate::get_text);
+
     if let Some(filter_mode) = filter_mode {
-        let text = editor.with_buffer(crate::get_text);
         if !filter_mode.is_match(&text) {
             change.reverse();
             editor.apply_change(&change);
-            return;
+            return None;
         }
     }
 
     changes.push(change);
     editor.set_redraw(true);
+    Some(text)
+}
+
+pub fn apply_text_input_edit_and_trigger_observers(
+    commands: &mut Commands,
+    entity: Entity,
+    edit: TextInputEdit,
+    editor: &mut BorrowedWithFontSystem<'_, Editor<'static>>,
+    changes: &mut cosmic_undo_2::Commands<cosmic_text::Change>,
+    max_chars: Option<usize>,
+    filter_mode: Option<&TextInputFilter>,
+) {
+    let text = apply_text_input_edit(edit, editor, changes, max_chars, filter_mode);
+    if let Some(text) = text {
+        commands
+            .entity(entity)
+            .trigger(|entity| ModifyText { entity, text });
+    }
 }
