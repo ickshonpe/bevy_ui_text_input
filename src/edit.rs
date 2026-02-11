@@ -2,6 +2,7 @@ use crate::SubmitText;
 use crate::TextInputBuffer;
 use crate::TextInputFilter;
 use crate::TextInputGlobalState;
+use crate::TextInputImeState;
 use crate::TextInputMode;
 use crate::TextInputNode;
 use crate::TextInputQueue;
@@ -16,6 +17,7 @@ use bevy::ecs::entity::Entity;
 use bevy::ecs::message::MessageReader;
 use bevy::ecs::message::MessageWriter;
 use bevy::ecs::observer::On;
+use bevy::ecs::query::With;
 use bevy::ecs::system::Commands;
 use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
@@ -28,6 +30,7 @@ use bevy::input::mouse::MouseWheel;
 use bevy::input_focus::FocusedInput;
 use bevy::input_focus::InputFocus;
 use bevy::math::Rect;
+use bevy::math::Vec2;
 use bevy::picking::events::Click;
 use bevy::picking::events::Drag;
 use bevy::picking::events::Move;
@@ -38,6 +41,7 @@ use bevy::picking::pointer::PointerButton;
 use bevy::time::Time;
 use bevy::ui::ComputedNode;
 use bevy::ui::UiGlobalTransform;
+use bevy::window::{Ime, Window};
 use cosmic_text::Action;
 use cosmic_text::BorrowedWithFontSystem;
 use cosmic_text::Change;
@@ -545,6 +549,7 @@ pub fn process_text_input_queues(
         &TextInputNode,
         &mut TextInputBuffer,
         &mut TextInputQueue,
+        &mut TextInputImeState,
         Option<&TextInputFilter>,
     )>,
     mut text_input_pipeline: ResMut<TextInputPipeline>,
@@ -553,7 +558,9 @@ pub fn process_text_input_queues(
 ) {
     let font_system = &mut text_input_pipeline.font_system;
 
-    for (entity, node, mut buffer, mut actions_queue, maybe_filter) in query.iter_mut() {
+    for (entity, node, mut buffer, mut actions_queue, mut ime_state, maybe_filter) in
+        query.iter_mut()
+    {
         let TextInputBuffer {
             editor, changes, ..
         } = &mut *buffer;
@@ -614,6 +621,47 @@ pub fn process_text_input_queues(
                         maybe_filter,
                     );
                 }
+                TextInputAction::ImePreedit { value } => {
+                    // Remove previous preedit text if any
+                    remove_preedit_text(&mut editor, &mut ime_state);
+
+                    if value.is_empty() {
+                        // Composition cancelled
+                        ime_state.preedit = None;
+                        ime_state.saved_cursor = None;
+                        ime_state.preedit_char_count = 0;
+                    } else {
+                        // Save cursor position before inserting preedit text
+                        let char_count = value.chars().count();
+                        let saved = editor.cursor();
+                        editor.insert_string(&value, None);
+
+                        ime_state.preedit = Some(value);
+                        ime_state.saved_cursor = Some(saved);
+                        ime_state.preedit_char_count = char_count;
+                    }
+                    editor.set_redraw(true);
+                }
+                TextInputAction::ImeCommit { value } => {
+                    // Remove preedit text first
+                    remove_preedit_text(&mut editor, &mut ime_state);
+
+                    // Insert committed text normally (with undo tracking, filter, max_chars)
+                    if !value.is_empty() {
+                        apply_text_input_edit(
+                            TextInputEdit::Paste(value),
+                            &mut editor,
+                            changes,
+                            node.max_chars,
+                            maybe_filter,
+                        );
+                    }
+
+                    // Clear IME state
+                    ime_state.preedit = None;
+                    ime_state.saved_cursor = None;
+                    ime_state.preedit_char_count = 0;
+                }
             }
         }
     }
@@ -621,10 +669,22 @@ pub fn process_text_input_queues(
 
 pub fn on_focused_keyboard_input(
     trigger: On<FocusedInput<KeyboardInput>>,
-    mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
+    mut query: Query<(&TextInputNode, &mut TextInputQueue, &TextInputImeState)>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
-    if let Ok((input, mut queue)) = query.get_mut(trigger.focused_entity) {
+    if let Ok((input, mut queue, ime_state)) = query.get_mut(trigger.focused_entity) {
+        // Suppress keyboard input while IME is composing — the IME handles these keys
+        if ime_state.preedit.is_some() {
+            let key = &trigger.event().input.logical_key;
+            if matches!(
+                key,
+                Key::Character(_) | Key::Space | Key::Backspace | Key::Delete | Key::Enter
+            ) && trigger.event().input.state.is_pressed()
+            {
+                return;
+            }
+        }
+
         let TextInputGlobalState {
             shift,
             overwrite_mode,
@@ -640,5 +700,125 @@ pub fn on_focused_keyboard_input(
                 queue.add(action);
             },
         );
+    }
+}
+
+/// Remove previously inserted preedit text from the editor using selection-based deletion.
+/// This is more robust than backspace-counting since it doesn't depend on cursor position.
+fn remove_preedit_text(
+    editor: &mut BorrowedWithFontSystem<Editor>,
+    ime_state: &mut TextInputImeState,
+) {
+    if ime_state.preedit_char_count > 0 {
+        if let Some(saved_cursor) = ime_state.saved_cursor {
+            // Select from saved cursor (before preedit) to current cursor (after preedit)
+            // The current cursor is at the end of the preedit text
+            let current_cursor = editor.cursor();
+            editor.set_cursor(saved_cursor);
+            editor.set_selection(Selection::Normal(current_cursor));
+            editor.delete_selection();
+        } else {
+            // Fallback: use backspace if we don't have a saved cursor
+            for _ in 0..ime_state.preedit_char_count {
+                editor.action(Action::Backspace);
+            }
+        }
+        ime_state.preedit_char_count = 0;
+        ime_state.saved_cursor = None;
+    }
+}
+
+/// Enables or disables IME on the window based on whether a text input is focused.
+/// Sets `ime_position` to just below the text cursor. The position is only updated
+/// when no preedit is active, so it stays fixed during composition.
+pub fn ime_focus_system(
+    input_focus: Res<InputFocus>,
+    text_input_query: Query<
+        (
+            &TextInputBuffer,
+            &ComputedNode,
+            &UiGlobalTransform,
+            &TextInputImeState,
+        ),
+        With<TextInputNode>,
+    >,
+    mut window_query: Query<&mut Window>,
+) {
+    if let Some(focused) = input_focus.0 {
+        if let Ok((buffer, node, transform, ime_state)) = text_input_query.get(focused) {
+            if let Some(mut window) = window_query.iter_mut().next() {
+                window.ime_enabled = true;
+                // Only update position when not composing, so the candidate
+                // box stays fixed once composition starts.
+                if ime_state.preedit.is_none() {
+                    if let Some((cx, cy)) = buffer.editor.cursor_position() {
+                        let rect = Rect::from_center_size(transform.translation, node.size());
+                        let line_height = buffer.editor.with_buffer(|b| b.metrics().line_height);
+                        window.ime_position = Vec2::new(
+                            rect.min.x + cx as f32,
+                            rect.min.y + cy as f32 + line_height * 0.8,
+                        );
+                    }
+                }
+            }
+            return;
+        }
+    }
+    // No text input focused — disable IME
+    for mut window in window_query.iter_mut() {
+        if window.ime_enabled {
+            window.ime_enabled = false;
+        }
+    }
+}
+
+/// Reads `Ime` messages and routes them to the focused text input's action queue.
+pub fn ime_event_system(
+    mut ime_reader: MessageReader<Ime>,
+    input_focus: Res<InputFocus>,
+    mut query: Query<&mut TextInputQueue, With<TextInputNode>>,
+) {
+    for ime in ime_reader.read() {
+        let Some(focused) = input_focus.0 else {
+            continue;
+        };
+        let Ok(mut queue) = query.get_mut(focused) else {
+            continue;
+        };
+        match ime {
+            Ime::Preedit { value, .. } => {
+                queue.add(TextInputAction::ImePreedit {
+                    value: value.clone(),
+                });
+            }
+            Ime::Commit { value, .. } => {
+                queue.add(TextInputAction::ImeCommit {
+                    value: value.clone(),
+                });
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Cancels preedit text when the text input loses focus.
+pub fn ime_cleanup_on_unfocus_system(
+    input_focus: Res<InputFocus>,
+    mut query: Query<(Entity, &mut TextInputImeState, &mut TextInputBuffer), With<TextInputNode>>,
+    mut text_input_pipeline: ResMut<TextInputPipeline>,
+) {
+    for (entity, mut ime_state, mut buffer) in query.iter_mut() {
+        if ime_state.preedit.is_some() {
+            let is_focused = input_focus.0.is_some_and(|f| f == entity);
+            if !is_focused {
+                let mut editor = buffer
+                    .editor
+                    .borrow_with(&mut text_input_pipeline.font_system);
+                remove_preedit_text(&mut editor, &mut ime_state);
+                ime_state.preedit = None;
+                ime_state.saved_cursor = None;
+                ime_state.preedit_char_count = 0;
+            }
+        }
     }
 }
