@@ -27,6 +27,10 @@ pub enum TextInputAction {
     PasteDeferred(ClipboardRead),
     /// A single edit action
     Edit(TextInputEdit),
+    /// IME preedit (composition) update
+    ImePreedit { value: String },
+    /// IME commit (finalized text)
+    ImeCommit { value: String },
 }
 
 /// An edit to perform on a [`TextInputBuffer`](crate::TextInputBuffer)

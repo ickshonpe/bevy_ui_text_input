@@ -33,9 +33,9 @@ use bevy::ui::{Node, UiSystems};
 use bevy::ui_render::{RenderUiSystems, extract_text_sections};
 use cosmic_text::{Buffer, Change, Edit, Editor, Metrics, Wrap};
 use edit::{
-    cursor_blink_system, mouse_wheel_scroll, on_drag_text_input, on_focused_keyboard_input,
-    on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
-    process_text_input_queues,
+    cursor_blink_system, ime_cleanup_on_unfocus_system, ime_event_system, ime_focus_system,
+    mouse_wheel_scroll, on_drag_text_input, on_focused_keyboard_input, on_move_clear_multi_click,
+    on_multi_click_set_selection, on_text_input_pressed, process_text_input_queues,
 };
 use render::{extract_text_input_nodes, extract_text_input_prompts};
 use text_input_pipeline::{
@@ -60,6 +60,9 @@ impl Plugin for TextInputPlugin {
                     (
                         cursor_blink_system,
                         mouse_wheel_scroll,
+                        ime_cleanup_on_unfocus_system,
+                        ime_focus_system,
+                        ime_event_system,
                         process_text_input_queues,
                         update_text_input_contents,
                         text_input_system,
@@ -93,7 +96,8 @@ impl Plugin for TextInputPlugin {
     TextInputStyle,
     TextColor,
     TextInputQueue,
-    LineHeight
+    LineHeight,
+    TextInputImeState
 )]
 #[component(
     on_add = on_add_textinputnode,
@@ -297,6 +301,18 @@ impl Default for TextInputBuffer {
     }
 }
 
+/// Tracks IME (Input Method Editor) composition state for a text input.
+#[derive(Component, Default, Debug)]
+pub struct TextInputImeState {
+    /// The current preedit (composing) text, if any.
+    pub preedit: Option<String>,
+    /// Saved cursor position from before preedit text was inserted.
+    /// Used for selection-based removal of preedit text.
+    pub(crate) saved_cursor: Option<cosmic_text::Cursor>,
+    /// Number of characters inserted as preedit (for removal).
+    pub preedit_char_count: usize,
+}
+
 /// Prompt displayed when the input is empty (including whitespace).
 /// Optional component.
 #[derive(Component, Clone, Debug, Reflect)]
@@ -350,6 +366,11 @@ pub struct TextInputStyle {
     pub cursor_height: f32,
     /// Time cursor blinks in seconds
     pub blink_interval: f32,
+    /// Color of the underline drawn beneath preedit (composing) text.
+    /// Defaults to `Color::NONE`, which follows the `TextColor`.
+    pub preedit_underline_color: Color,
+    /// Thickness of the preedit underline in logical pixels.
+    pub preedit_underline_thickness: f32,
 }
 
 impl Default for TextInputStyle {
@@ -362,6 +383,8 @@ impl Default for TextInputStyle {
             cursor_radius: 0.,
             cursor_height: 1.,
             blink_interval: 0.5,
+            preedit_underline_color: Color::NONE,
+            preedit_underline_thickness: 1.,
         }
     }
 }
