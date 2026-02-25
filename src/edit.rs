@@ -39,12 +39,16 @@ use bevy::time::Time;
 use bevy::ui::ComputedNode;
 use bevy::ui::UiGlobalTransform;
 use cosmic_text::Action;
+use cosmic_text::Attrs;
 use cosmic_text::BorrowedWithFontSystem;
 use cosmic_text::Change;
+use cosmic_text::Cursor;
 use cosmic_text::Edit;
 use cosmic_text::Editor;
+use cosmic_text::LayoutRun;
 use cosmic_text::Motion;
 use cosmic_text::Selection;
+use unicode_segmentation::UnicodeSegmentation;
 
 pub fn apply_action<'a>(
     editor: &mut BorrowedWithFontSystem<Editor<'a>>,
@@ -539,6 +543,66 @@ pub fn cursor_blink_system(
     }
 }
 
+fn cursor_glyph_opt(cursor: &Cursor, run: &LayoutRun) -> Option<(usize, f32)> {
+    if cursor.line == run.line_i {
+        for (glyph_i, glyph) in run.glyphs.iter().enumerate() {
+            if cursor.index == glyph.start {
+                return Some((glyph_i, 0.0));
+            } else if cursor.index > glyph.start && cursor.index < glyph.end {
+                // Guess x offset based on characters
+                let mut before = 0;
+                let mut total = 0;
+
+                let cluster = &run.text[glyph.start..glyph.end];
+                for (i, _) in cluster.grapheme_indices(true) {
+                    if glyph.start + i < cursor.index {
+                        before += 1;
+                    }
+                    total += 1;
+                }
+
+                let offset = glyph.w * (before as f32) / (total as f32);
+                return Some((glyph_i, offset));
+            }
+        }
+        match run.glyphs.last() {
+            Some(glyph) => {
+                if cursor.index == glyph.end {
+                    return Some((run.glyphs.len(), 0.0));
+                }
+            }
+            None => {
+                return Some((0, 0.0));
+            }
+        }
+    }
+    None
+}
+
+pub fn cursor_position(cursor: &Cursor, run: &LayoutRun) -> Option<(i32, i32)> {
+    let (cursor_glyph, cursor_glyph_offset) = cursor_glyph_opt(cursor, run)?;
+    let x = run.glyphs.get(cursor_glyph).map_or_else(
+        || {
+            run.glyphs.last().map_or(0, |glyph| {
+                if glyph.level.is_rtl() {
+                    glyph.x as i32
+                } else {
+                    (glyph.x + glyph.w) as i32
+                }
+            })
+        },
+        |glyph| {
+            if glyph.level.is_rtl() {
+                (glyph.x + glyph.w - cursor_glyph_offset) as i32
+            } else {
+                (glyph.x + cursor_glyph_offset) as i32
+            }
+        },
+    );
+
+    Some((x, run.line_top as i32))
+}
+
 pub fn process_text_input_queues(
     mut query: Query<(
         Entity,
@@ -554,11 +618,15 @@ pub fn process_text_input_queues(
     let font_system = &mut text_input_pipeline.font_system;
 
     for (entity, node, mut buffer, mut actions_queue, maybe_filter) in query.iter_mut() {
+        let mut buffer_changed = false;
         let TextInputBuffer {
-            editor, changes, ..
+            editor,
+            mask_buffer,
+            changes,
+            ..
         } = &mut *buffer;
-        let mut editor = editor.borrow_with(font_system);
         while let Some(action) = actions_queue.next() {
+            let mut editor = editor.borrow_with(font_system);
             match action {
                 TextInputAction::Submit => {
                     let text = editor.with_buffer(crate::get_text);
@@ -578,6 +646,7 @@ pub fn process_text_input_queues(
                             node.max_chars,
                             maybe_filter,
                         );
+                        buffer_changed = true;
                     }
                 }
                 TextInputAction::Copy => {
@@ -598,6 +667,7 @@ pub fn process_text_input_queues(
                                 node.max_chars,
                                 maybe_filter,
                             );
+                            buffer_changed = true;
                         }
                     } else {
                         // Add the clipboard read back to the queue, process it and the remaining actions next frame.
@@ -613,8 +683,19 @@ pub fn process_text_input_queues(
                         node.max_chars,
                         maybe_filter,
                     );
+                    buffer_changed = true;
                 }
             }
+        }
+        if buffer_changed && let Some(mask_char) = node.mask_character {
+            let len = editor.with_buffer(buffer_len);
+            mask_buffer.set_text(
+                font_system,
+                &String::from_iter(std::iter::repeat_n(&mask_char, len)),
+                &Attrs::new(),
+                cosmic_text::Shaping::Advanced,
+                None,
+            );
         }
     }
 }

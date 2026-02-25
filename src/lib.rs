@@ -117,6 +117,8 @@ pub struct TextInputNode {
     pub unfocus_on_submit: bool,
     /// Text justification
     pub justification: Justify,
+    /// Character to mask input with
+    pub mask_character: Option<char>,
 }
 
 impl Default for TextInputNode {
@@ -130,6 +132,7 @@ impl Default for TextInputNode {
             focus_on_pointer_down: true,
             unfocus_on_submit: true,
             justification: Justify::Left,
+            mask_character: None,
         }
     }
 }
@@ -271,6 +274,7 @@ impl TextInputMode {
 #[derive(Component, Debug)]
 pub struct TextInputBuffer {
     pub editor: Editor<'static>,
+    pub mask_buffer: Buffer,
     pub(crate) selection_rects: Vec<Rect>,
     pub(crate) cursor_blink_time: f32,
     pub(crate) needs_update: bool,
@@ -282,12 +286,22 @@ impl TextInputBuffer {
     pub fn get_text(&self) -> String {
         self.editor.with_buffer(get_text)
     }
+
+    pub fn cursor_position(&self, masked: bool) -> Option<(i32, i32)> {
+        self.editor.with_buffer(|buffer| {
+            let buffer = if masked { &self.mask_buffer } else { buffer };
+            buffer
+                .layout_runs()
+                .find_map(|run| edit::cursor_position(&self.editor.cursor(), &run))
+        })
+    }
 }
 
 impl Default for TextInputBuffer {
     fn default() -> Self {
         Self {
             editor: Editor::new(Buffer::new_empty(Metrics::new(20.0, 20.0))),
+            mask_buffer: Buffer::new_empty(Metrics::new(20.0, 20.0)),
             selection_rects: vec![],
             cursor_blink_time: 0.,
             needs_update: true,
