@@ -127,11 +127,11 @@ pub fn text_input_system(
         Ref<TextInputNode>,
     )>,
 ) {
-    for (node, text_font, line_height, text_input_layout_info, mut editor, input) in
+    for (node, text_font, line_height, text_input_layout_info, mut text_editor, input) in
         text_query.iter_mut()
     {
         let layout_info = text_input_layout_info.into_inner();
-        if editor.needs_update
+        if text_editor.needs_update
             || text_font.is_changed()
             || line_height.is_changed()
             || node.is_changed()
@@ -147,7 +147,12 @@ pub fn text_input_system(
                 LineHeight::RelativeToFont(r) => r * text_font.font_size,
             };
 
-            let result = editor.editor.with_buffer_mut(|buffer| {
+            let TextInputBuffer {
+                editor,
+                mask_buffer,
+                ..
+            } = &mut *text_editor;
+            let result = editor.with_buffer_mut(|buffer| {
                 let TextInputPipeline {
                     font_system,
                     handle_to_font_id_map: map_handle_to_font_id,
@@ -188,34 +193,51 @@ pub fn text_input_system(
                     align,
                 );
 
+                mask_buffer.set_metrics_and_size(font_system, metrics, bounds.width, bounds.height);
+                mask_buffer.set_wrap(font_system, input.mode.wrap());
+                let mask_text = crate::get_text(mask_buffer);
+                mask_buffer.set_text(
+                    font_system,
+                    &mask_text,
+                    &attrs,
+                    cosmic_text::Shaping::Advanced,
+                    align,
+                );
+
                 Ok(())
             });
 
             if result.is_ok() {
-                editor.needs_update = false;
-                editor.editor.set_redraw(true);
+                text_editor.needs_update = false;
+                text_editor.editor.set_redraw(true);
             } else {
-                editor.needs_update = true;
+                text_editor.needs_update = true;
                 continue;
             }
         }
 
-        editor
+        text_editor
             .editor
             .shape_as_needed(&mut text_input_pipeline.font_system, false);
 
-        let selection = editor.editor.selection_bounds();
+        let selection = text_editor.editor.selection_bounds();
         let TextInputBuffer {
             editor,
+            mask_buffer,
             selection_rects,
             ..
-        } = &mut *editor;
+        } = &mut *text_editor;
 
         if editor.redraw() {
             layout_info.glyphs.clear();
             selection_rects.clear();
 
             let result = editor.with_buffer_mut(|buffer| {
+                let buffer = if input.mask_character.is_some() {
+                    mask_buffer
+                } else {
+                    buffer
+                };
                 let box_size = buffer_dimensions(buffer);
                 let result = buffer.layout_runs().try_for_each(|run| {
                     if let Some(selection) = selection

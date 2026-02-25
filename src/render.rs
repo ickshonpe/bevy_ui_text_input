@@ -156,8 +156,7 @@ pub fn extract_text_input_nodes(
             && !style.cursor_color.is_fully_transparent();
 
         let cursor_position = input_buffer
-            .editor
-            .cursor_position()
+            .cursor_position(input.mask_character.is_some())
             .filter(|_| cursor_visable);
 
         let selection = input_buffer.editor.selection_bounds();
