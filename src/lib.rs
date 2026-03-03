@@ -3,6 +3,8 @@ pub mod clipboard;
 pub mod edit;
 pub mod render;
 pub mod text_input_pipeline;
+#[cfg(target_os = "android")]
+pub mod android;
 
 use std::collections::VecDeque;
 
@@ -73,6 +75,20 @@ impl Plugin for TextInputPlugin {
                 ),
             );
 
+        #[cfg(target_os = "android")]
+        app.add_systems(
+            PostUpdate,
+            (
+                android::android_text_input_poll_system
+                    .after(ime_event_system)
+                    .before(process_text_input_queues),
+                android::android_text_input_sync_system
+                    .after(process_text_input_queues)
+                    .before(update_text_input_contents),
+            )
+            .in_set(UiSystems::PostLayout),
+        );
+        
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             return;
         };
@@ -146,6 +162,13 @@ fn on_add_textinputnode(mut world: DeferredWorld, context: HookContext) {
         Observer::new(on_move_clear_multi_click),
         Observer::new(on_focused_keyboard_input),
     ] {
+        observer.watch_entity(context.entity);
+        world.commands().spawn(observer);
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        let mut observer = Observer::new(android::on_text_input_pressed_android);
         observer.watch_entity(context.entity);
         world.commands().spawn(observer);
     }
@@ -458,6 +481,7 @@ pub struct TextInputGlobalState {
     pub command: bool,
     /// If true typed glyphs overwrite the glyph at the current cursor position, instead of inserting before it.
     pub overwrite_mode: bool,
+    pub last_android_text: String,
 }
 
 /// Queued `TextInputActions` to be processed by `process_text_input_queues` and applied to the `TextInputBuffer`

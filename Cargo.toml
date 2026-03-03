@@ -23,13 +23,17 @@ cosmic_undo_2 = "0.2.0"
 # Keep in sync with https://github.com/bevyengine/bevy/blob/main/crates/bevy_text/Cargo.toml#L33
 cosmic-text = "0.16"
 
-[target.'cfg(any(windows, unix))'.dependencies]
+[target.'cfg(all(any(windows, unix), not(target_os = "android")))'.dependencies]
 arboard = { version = "3.6.1", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2" }
 web-sys = { version = "0.3", features = ["Navigator", "Clipboard"] }
 wasm-bindgen-futures = "0.4"
+
+[target.'cfg(target_os = "android")'.dependencies]
+bevy_android = "0.18"
+android-activity = { version = "0.6", features = ["game-activity"] }
 
 [lints.clippy]
 too_many_arguments = "allow"

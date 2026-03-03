@@ -689,6 +689,7 @@ pub fn on_focused_keyboard_input(
             shift,
             overwrite_mode,
             command,
+            ..
         } = &mut *global_state;
         queue_text_input_action(
             &input.mode,
