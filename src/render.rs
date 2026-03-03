@@ -1,5 +1,6 @@
 use crate::TextInputBuffer;
 use crate::TextInputGlyph;
+use crate::TextInputImeState;
 use crate::TextInputLayoutInfo;
 use crate::TextInputNode;
 use crate::TextInputPrompt;
@@ -57,6 +58,7 @@ pub fn extract_text_input_nodes(
             &TextInputStyle,
             &TextInputNode,
             &TextInputBuffer,
+            &TextInputImeState,
         )>,
     >,
     camera_map: Extract<UiCameraMap>,
@@ -78,6 +80,7 @@ pub fn extract_text_input_nodes(
         style,
         input,
         input_buffer,
+        ime_state,
     ) in &uinode_query
     {
         // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
@@ -209,6 +212,66 @@ pub fn extract_text_input_nodes(
 
             start = end;
             end += 1;
+        }
+
+        // Draw preedit underline beneath composing text
+        if ime_state.preedit.is_some() && ime_state.preedit_char_count > 0 {
+            let total_glyphs = text_layout_info.glyphs.len();
+            // Preedit glyphs are the last N glyphs (they were inserted at the cursor)
+            let preedit_start_idx = total_glyphs.saturating_sub(ime_state.preedit_char_count);
+            if preedit_start_idx < total_glyphs {
+                // Find the horizontal extent of preedit glyphs and the line index.
+                // Glyph position is center-based, so left edge = position.x - size.x * 0.5
+                let mut min_x = f32::MAX;
+                let mut max_x = f32::MIN;
+                let mut preedit_line_index = 0usize;
+                for glyph in &text_layout_info.glyphs[preedit_start_idx..] {
+                    let half_w = glyph.size.x * 0.5;
+                    min_x = min_x.min(glyph.position.x - half_w);
+                    max_x = max_x.max(glyph.position.x + half_w);
+                    preedit_line_index = glyph.line_index;
+                }
+                if min_x < max_x {
+                    // Use a consistent y based on line_height, not individual glyph bounds.
+                    let underline_y = (preedit_line_index + 1) as f32 * line_height;
+                    let underline_width = max_x - min_x;
+                    let underline_center_x = (min_x + max_x) * 0.5;
+                    let underline_center_y = underline_y + style.preedit_underline_thickness * 0.5;
+                    // Use dedicated preedit color if set, otherwise follow text color
+                    let underline_color =
+                        if style.preedit_underline_color != bevy::color::Color::NONE {
+                            LinearRgba::from(style.preedit_underline_color)
+                        } else {
+                            color
+                        };
+                    extracted_uinodes.uinodes.push(ExtractedUiNode {
+                        z_order: uinode.stack_index as f32 + stack_z_offsets::TEXT,
+                        image: AssetId::default(),
+                        clip,
+                        extracted_camera_entity,
+                        transform: transform
+                            * Affine2::from_translation(Vec2::new(
+                                underline_center_x,
+                                underline_center_y,
+                            )),
+                        item: ExtractedUiItem::Node {
+                            color: underline_color,
+                            atlas_scaling: None,
+                            flip_x: false,
+                            flip_y: false,
+                            border_radius: ResolvedBorderRadius::ZERO,
+                            border: BorderRect::ZERO,
+                            node_type: NodeType::Rect,
+                            rect: Rect {
+                                min: Vec2::ZERO,
+                                max: Vec2::new(underline_width, style.preedit_underline_thickness),
+                            },
+                        },
+                        main_entity: entity.into(),
+                        render_entity: commands.spawn(TemporaryRenderEntity).id(),
+                    });
+                }
+            }
         }
 
         if let Some((x, y)) = cursor_position {
