@@ -623,22 +623,9 @@ pub fn process_text_input_queues(
 pub fn on_focused_keyboard_input(
     trigger: On<FocusedInput<KeyboardInput>>,
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
-    key_input: Res<ButtonInput<Key>>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
     if let Ok((input, mut queue)) = query.get_mut(trigger.focused_entity) {
-        global_state.shift = key_input.pressed(Key::Shift);
-
-        #[cfg(target_os = "macos")]
-        {
-            global_state.command = key_input.pressed(Key::Control) || key_input.pressed(Key::Super);
-        }
-
-        #[cfg(not(target_os = "macos"))]
-        {
-            global_state.command = key_input.pressed(Key::Control);
-        }
-
         let TextInputGlobalState {
             shift,
             overwrite_mode,
@@ -655,5 +642,22 @@ pub fn on_focused_keyboard_input(
                 queue.add(action);
             },
         );
+    }
+}
+
+pub fn sync_text_input_modifier_state(
+    key_input: Res<ButtonInput<Key>>,
+    mut global_state: ResMut<TextInputGlobalState>,
+) {
+    global_state.shift = key_input.pressed(Key::Shift);
+
+    #[cfg(target_os = "macos")]
+    {
+        global_state.command = key_input.pressed(Key::Control) || key_input.pressed(Key::Super);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        global_state.command = key_input.pressed(Key::Control);
     }
 }
