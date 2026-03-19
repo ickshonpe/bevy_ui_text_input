@@ -20,6 +20,7 @@ use bevy::ecs::system::Commands;
 use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
+use bevy::input::ButtonInput;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::Key;
 use bevy::input::keyboard::KeyboardInput;
@@ -622,14 +623,28 @@ pub fn process_text_input_queues(
 pub fn on_focused_keyboard_input(
     trigger: On<FocusedInput<KeyboardInput>>,
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
+    key_input: Res<ButtonInput<Key>>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
     if let Ok((input, mut queue)) = query.get_mut(trigger.focused_entity) {
+        global_state.shift = key_input.pressed(Key::Shift);
+
+        #[cfg(target_os = "macos")]
+        {
+            global_state.command = key_input.pressed(Key::Control) || key_input.pressed(Key::Super);
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            global_state.command = key_input.pressed(Key::Control);
+        }
+
         let TextInputGlobalState {
             shift,
             overwrite_mode,
             command,
         } = &mut *global_state;
+
         queue_text_input_action(
             &input.mode,
             shift,
