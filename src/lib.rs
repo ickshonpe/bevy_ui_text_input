@@ -35,8 +35,8 @@ use bevy::window::WindowEvent;
 use cosmic_text::{Buffer, Change, Edit, Editor, Metrics, Wrap};
 use edit::{
     cursor_blink_system, mouse_wheel_scroll, on_drag_text_input, on_focused_window_event,
-    on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
-    process_text_input_queues,
+    on_move_clear_multi_click, on_multi_click_set_selection, on_raw_keyboard_input_fallback,
+    on_text_input_pressed, process_text_input_queues,
 };
 use render::{extract_text_input_nodes, extract_text_input_prompts};
 use text_input_pipeline::{
@@ -56,7 +56,10 @@ impl Plugin for TextInputPlugin {
             .add_observer(on_focused_window_event)
             .add_systems(
                 PreUpdate,
-                dispatch_focused_input::<WindowEvent>.in_set(InputFocusSystems::Dispatch),
+                (
+                    dispatch_focused_input::<WindowEvent>.in_set(InputFocusSystems::Dispatch),
+                    on_raw_keyboard_input_fallback.after(InputFocusSystems::Dispatch),
+                ),
             )
             .add_systems(
                 PostUpdate,

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::SubmitText;
 use crate::TextInputBuffer;
 use crate::TextInputFilter;
@@ -632,33 +634,86 @@ pub fn on_focused_window_event(
             global_state.command = false;
         }
         WindowEvent::KeyboardInput(keyboard_input) => {
-            sync_text_input_modifier_state(keyboard_input, &mut global_state);
-
             let event_target = trigger.event_target();
             if event_target != trigger.original_event_target() {
                 return;
             }
 
-            if let Ok((input, mut queue)) = query.get_mut(event_target) {
-                let TextInputGlobalState {
-                    shift,
-                    overwrite_mode,
-                    command,
-                } = &mut *global_state;
-
-                queue_text_input_action(
-                    &input.mode,
-                    shift,
-                    overwrite_mode,
-                    command,
-                    keyboard_input,
-                    |action| {
-                        queue.add(action);
-                    },
-                );
-            }
+            handle_keyboard_input(
+                keyboard_input,
+                Some(event_target),
+                &mut query,
+                &mut global_state,
+            );
         }
         _ => {}
+    }
+}
+
+pub fn on_raw_keyboard_input_fallback(
+    mut keyboard_inputs: MessageReader<KeyboardInput>,
+    mut window_events: MessageReader<WindowEvent>,
+    input_focus: Res<InputFocus>,
+    mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
+    mut global_state: ResMut<TextInputGlobalState>,
+) {
+    let mut window_keyboard_inputs = HashMap::<KeyboardInput, usize>::new();
+    for window_event in window_events.read() {
+        let WindowEvent::KeyboardInput(keyboard_input) = window_event else {
+            continue;
+        };
+
+        *window_keyboard_inputs
+            .entry(keyboard_input.clone())
+            .or_default() += 1;
+    }
+
+    for keyboard_input in keyboard_inputs.read() {
+        if let Some(seen_count) = window_keyboard_inputs.get_mut(keyboard_input)
+            && *seen_count > 0
+        {
+            *seen_count -= 1;
+            continue;
+        }
+
+        handle_keyboard_input(
+            keyboard_input,
+            input_focus.get(),
+            &mut query,
+            &mut global_state,
+        );
+    }
+}
+
+fn handle_keyboard_input(
+    keyboard_input: &KeyboardInput,
+    target: Option<Entity>,
+    query: &mut Query<(&TextInputNode, &mut TextInputQueue)>,
+    global_state: &mut TextInputGlobalState,
+) {
+    sync_text_input_modifier_state(keyboard_input, global_state);
+
+    let Some(target) = target else {
+        return;
+    };
+
+    if let Ok((input, mut queue)) = query.get_mut(target) {
+        let TextInputGlobalState {
+            shift,
+            overwrite_mode,
+            command,
+        } = global_state;
+
+        queue_text_input_action(
+            &input.mode,
+            shift,
+            overwrite_mode,
+            command,
+            keyboard_input,
+            |action| {
+                queue.add(action);
+            },
+        );
     }
 }
 
