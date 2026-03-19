@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use crate::SubmitText;
 use crate::TextInputBuffer;
 use crate::TextInputFilter;
@@ -24,6 +26,7 @@ use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::Key;
+use bevy::input::keyboard::KeyboardFocusLost;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::MouseScrollUnit;
 use bevy::input::mouse::MouseWheel;
@@ -671,18 +674,29 @@ pub(super) fn on_focused_text_input_keyboard_event(
 
 pub(super) fn on_raw_keyboard_input_fallback(
     mut keyboard_inputs: MessageReader<KeyboardInput>,
+    mut keyboard_focus_lost: MessageReader<KeyboardFocusLost>,
     mut text_input_keyboard_events: MessageReader<TextInputKeyboardEvent>,
     input_focus: Res<InputFocus>,
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
+    let saw_forwarded_keyboard_focus_lost = Cell::new(false);
     let mut forwarded_keyboard_inputs = text_input_keyboard_events
         .read()
         .filter_map(|event| match event {
             TextInputKeyboardEvent::KeyboardInput(keyboard_input) => Some(keyboard_input),
-            TextInputKeyboardEvent::KeyboardFocusLost(_) => None,
+            TextInputKeyboardEvent::KeyboardFocusLost(_) => {
+                saw_forwarded_keyboard_focus_lost.set(true);
+                None
+            }
         })
         .peekable();
+
+    let saw_raw_keyboard_focus_lost = keyboard_focus_lost.read().count() != 0;
+    if saw_raw_keyboard_focus_lost && !saw_forwarded_keyboard_focus_lost.get() {
+        global_state.shift = false;
+        global_state.command = false;
+    }
 
     for keyboard_input in keyboard_inputs.read() {
         if forwarded_keyboard_inputs
