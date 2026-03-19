@@ -13,6 +13,7 @@ use crate::clipboard::Clipboard;
 use crate::text_input_pipeline::TextInputPipeline;
 use bevy::ecs::component::Component;
 use bevy::ecs::entity::Entity;
+use bevy::ecs::event::EntityEvent;
 use bevy::ecs::message::MessageReader;
 use bevy::ecs::message::MessageWriter;
 use bevy::ecs::observer::On;
@@ -626,11 +627,12 @@ pub fn on_focused_keyboard_input(
 ) {
     sync_text_input_modifier_state(&trigger.event().input, &mut global_state);
 
-    if trigger.focused_entity != trigger.original_event_target() {
+    let event_target = trigger.event_target();
+    if event_target != trigger.original_event_target() {
         return;
     }
 
-    if let Ok((input, mut queue)) = query.get_mut(trigger.focused_entity) {
+    if let Ok((input, mut queue)) = query.get_mut(event_target) {
         let TextInputGlobalState {
             shift,
             overwrite_mode,
