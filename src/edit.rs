@@ -1,7 +1,10 @@
+use std::cell::Cell;
+
 use crate::SubmitText;
 use crate::TextInputBuffer;
 use crate::TextInputFilter;
 use crate::TextInputGlobalState;
+use crate::TextInputKeyboardEvent;
 use crate::TextInputMode;
 use crate::TextInputNode;
 use crate::TextInputQueue;
@@ -13,6 +16,7 @@ use crate::clipboard::Clipboard;
 use crate::text_input_pipeline::TextInputPipeline;
 use bevy::ecs::component::Component;
 use bevy::ecs::entity::Entity;
+use bevy::ecs::event::EntityEvent;
 use bevy::ecs::message::MessageReader;
 use bevy::ecs::message::MessageWriter;
 use bevy::ecs::observer::On;
@@ -22,6 +26,7 @@ use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::Key;
+use bevy::input::keyboard::KeyboardFocusLost;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::MouseScrollUnit;
 use bevy::input::mouse::MouseWheel;
@@ -38,6 +43,7 @@ use bevy::picking::pointer::PointerButton;
 use bevy::time::Time;
 use bevy::ui::ComputedNode;
 use bevy::ui::UiGlobalTransform;
+use bevy::window::WindowEvent;
 use cosmic_text::Action;
 use cosmic_text::BorrowedWithFontSystem;
 use cosmic_text::Change;
@@ -619,26 +625,143 @@ pub fn process_text_input_queues(
     }
 }
 
-pub fn on_focused_keyboard_input(
-    trigger: On<FocusedInput<KeyboardInput>>,
+pub(super) fn forward_text_input_keyboard_events(
+    mut window_events: MessageReader<WindowEvent>,
+    mut text_input_keyboard_events: MessageWriter<TextInputKeyboardEvent>,
+) {
+    for window_event in window_events.read() {
+        match window_event {
+            WindowEvent::KeyboardInput(keyboard_input) => {
+                text_input_keyboard_events.write(TextInputKeyboardEvent::KeyboardInput(
+                    keyboard_input.clone(),
+                ));
+            }
+            WindowEvent::KeyboardFocusLost(keyboard_focus_lost) => {
+                text_input_keyboard_events.write(TextInputKeyboardEvent::KeyboardFocusLost(
+                    keyboard_focus_lost.clone(),
+                ));
+            }
+            _ => {}
+        }
+    }
+}
+
+pub(super) fn on_focused_text_input_keyboard_event(
+    trigger: On<FocusedInput<TextInputKeyboardEvent>>,
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
-    if let Ok((input, mut queue)) = query.get_mut(trigger.focused_entity) {
+    match &trigger.event().input {
+        TextInputKeyboardEvent::KeyboardFocusLost(_) => {
+            global_state.shift = false;
+            global_state.command = false;
+        }
+        TextInputKeyboardEvent::KeyboardInput(keyboard_input) => {
+            let event_target = trigger.event_target();
+            if event_target != trigger.original_event_target() {
+                return;
+            }
+
+            handle_keyboard_input(
+                keyboard_input,
+                Some(event_target),
+                &mut query,
+                &mut global_state,
+            );
+        }
+    }
+}
+
+pub(super) fn on_raw_keyboard_input_fallback(
+    mut keyboard_inputs: MessageReader<KeyboardInput>,
+    mut keyboard_focus_lost: MessageReader<KeyboardFocusLost>,
+    mut text_input_keyboard_events: MessageReader<TextInputKeyboardEvent>,
+    input_focus: Res<InputFocus>,
+    mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
+    mut global_state: ResMut<TextInputGlobalState>,
+) {
+    let saw_forwarded_keyboard_focus_lost = Cell::new(false);
+    let mut forwarded_keyboard_inputs = text_input_keyboard_events
+        .read()
+        .filter_map(|event| match event {
+            TextInputKeyboardEvent::KeyboardInput(keyboard_input) => Some(keyboard_input),
+            TextInputKeyboardEvent::KeyboardFocusLost(_) => {
+                saw_forwarded_keyboard_focus_lost.set(true);
+                None
+            }
+        })
+        .peekable();
+
+    let saw_raw_keyboard_focus_lost = keyboard_focus_lost.read().count() != 0;
+    if saw_raw_keyboard_focus_lost && !saw_forwarded_keyboard_focus_lost.get() {
+        global_state.shift = false;
+        global_state.command = false;
+    }
+
+    for keyboard_input in keyboard_inputs.read() {
+        if forwarded_keyboard_inputs
+            .next_if(|forwarded_keyboard_input| *forwarded_keyboard_input == keyboard_input)
+            .is_some()
+        {
+            continue;
+        }
+
+        handle_keyboard_input(
+            keyboard_input,
+            input_focus.get(),
+            &mut query,
+            &mut global_state,
+        );
+    }
+}
+
+fn handle_keyboard_input(
+    keyboard_input: &KeyboardInput,
+    target: Option<Entity>,
+    query: &mut Query<(&TextInputNode, &mut TextInputQueue)>,
+    global_state: &mut TextInputGlobalState,
+) {
+    sync_text_input_modifier_state(keyboard_input, global_state);
+
+    let Some(target) = target else {
+        return;
+    };
+
+    if let Ok((input, mut queue)) = query.get_mut(target) {
         let TextInputGlobalState {
             shift,
             overwrite_mode,
             command,
-        } = &mut *global_state;
+        } = global_state;
+
         queue_text_input_action(
             &input.mode,
             shift,
             overwrite_mode,
             command,
-            &trigger.event().input,
+            keyboard_input,
             |action| {
                 queue.add(action);
             },
         );
+    }
+}
+
+fn sync_text_input_modifier_state(
+    keyboard_input: &KeyboardInput,
+    global_state: &mut TextInputGlobalState,
+) {
+    match keyboard_input.logical_key {
+        Key::Shift => {
+            global_state.shift = keyboard_input.state == ButtonState::Pressed;
+        }
+        Key::Control => {
+            global_state.command = keyboard_input.state == ButtonState::Pressed;
+        }
+        #[cfg(target_os = "macos")]
+        Key::Super => {
+            global_state.command = keyboard_input.state == ButtonState::Pressed;
+        }
+        _ => {}
     }
 }
