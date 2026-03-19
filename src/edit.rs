@@ -626,6 +626,10 @@ pub fn on_focused_keyboard_input(
 ) {
     sync_text_input_modifier_state(&trigger.event().input, &mut global_state);
 
+    if trigger.focused_entity != trigger.original_event_target() {
+        return;
+    }
+
     if let Ok((input, mut queue)) = query.get_mut(trigger.focused_entity) {
         let TextInputGlobalState {
             shift,
