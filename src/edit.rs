@@ -624,6 +624,8 @@ pub fn on_focused_keyboard_input(
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
+    sync_text_input_modifier_state(&trigger.event().input, &mut global_state);
+
     if let Ok((input, mut queue)) = query.get_mut(trigger.focused_entity) {
         let TextInputGlobalState {
             shift,
@@ -644,23 +646,21 @@ pub fn on_focused_keyboard_input(
     }
 }
 
-pub fn sync_text_input_modifier_state(
-    mut keyboard_input_events: MessageReader<KeyboardInput>,
-    mut global_state: ResMut<TextInputGlobalState>,
+fn sync_text_input_modifier_state(
+    keyboard_input: &KeyboardInput,
+    global_state: &mut TextInputGlobalState,
 ) {
-    for keyboard_input in keyboard_input_events.read() {
-        match keyboard_input.logical_key {
-            Key::Shift => {
-                global_state.shift = keyboard_input.state == ButtonState::Pressed;
-            }
-            Key::Control => {
-                global_state.command = keyboard_input.state == ButtonState::Pressed;
-            }
-            #[cfg(target_os = "macos")]
-            Key::Super => {
-                global_state.command = keyboard_input.state == ButtonState::Pressed;
-            }
-            _ => {}
+    match keyboard_input.logical_key {
+        Key::Shift => {
+            global_state.shift = keyboard_input.state == ButtonState::Pressed;
         }
+        Key::Control => {
+            global_state.command = keyboard_input.state == ButtonState::Pressed;
+        }
+        #[cfg(target_os = "macos")]
+        Key::Super => {
+            global_state.command = keyboard_input.state == ButtonState::Pressed;
+        }
+        _ => {}
     }
 }

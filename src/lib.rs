@@ -35,7 +35,7 @@ use cosmic_text::{Buffer, Change, Edit, Editor, Metrics, Wrap};
 use edit::{
     cursor_blink_system, mouse_wheel_scroll, on_drag_text_input, on_focused_keyboard_input,
     on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
-    process_text_input_queues, sync_text_input_modifier_state,
+    process_text_input_queues,
 };
 use render::{extract_text_input_nodes, extract_text_input_prompts};
 use text_input_pipeline::{
@@ -52,10 +52,10 @@ impl Plugin for TextInputPlugin {
             .init_resource::<TextInputGlobalState>()
             .init_resource::<TextInputPipeline>()
             .init_resource::<clipboard::Clipboard>()
+            .add_observer(on_focused_keyboard_input)
             .add_systems(
                 PostUpdate,
                 (
-                    sync_text_input_modifier_state,
                     remove_dropped_font_atlas_sets_from_text_input_pipeline
                         .before(AssetEventSystems),
                     (
@@ -141,7 +141,6 @@ fn on_add_textinputnode(mut world: DeferredWorld, context: HookContext) {
         Observer::new(on_text_input_pressed),
         Observer::new(on_multi_click_set_selection),
         Observer::new(on_move_clear_multi_click),
-        Observer::new(on_focused_keyboard_input),
     ] {
         observer.watch_entity(context.entity);
         world.commands().spawn(observer);
