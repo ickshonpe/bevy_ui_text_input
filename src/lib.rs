@@ -179,7 +179,7 @@ pub struct SubmitText {
 }
 
 #[derive(Message, Clone)]
-pub enum TextInputKeyboardEvent {
+enum TextInputKeyboardEvent {
     KeyboardInput(KeyboardInput),
     KeyboardFocusLost(KeyboardFocusLost),
 }

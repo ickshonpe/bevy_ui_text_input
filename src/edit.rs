@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use crate::SubmitText;
 use crate::TextInputBuffer;
 use crate::TextInputFilter;
@@ -624,7 +622,7 @@ pub fn process_text_input_queues(
     }
 }
 
-pub fn forward_text_input_keyboard_events(
+pub(super) fn forward_text_input_keyboard_events(
     mut window_events: MessageReader<WindowEvent>,
     mut text_input_keyboard_events: MessageWriter<TextInputKeyboardEvent>,
 ) {
@@ -645,7 +643,7 @@ pub fn forward_text_input_keyboard_events(
     }
 }
 
-pub fn on_focused_text_input_keyboard_event(
+pub(super) fn on_focused_text_input_keyboard_event(
     trigger: On<FocusedInput<TextInputKeyboardEvent>>,
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
     mut global_state: ResMut<TextInputGlobalState>,
@@ -671,7 +669,7 @@ pub fn on_focused_text_input_keyboard_event(
     }
 }
 
-pub fn on_raw_keyboard_input_fallback(
+pub(super) fn on_raw_keyboard_input_fallback(
     mut keyboard_inputs: MessageReader<KeyboardInput>,
     mut text_input_keyboard_events: MessageReader<TextInputKeyboardEvent>,
     input_focus: Res<InputFocus>,
@@ -681,14 +679,16 @@ pub fn on_raw_keyboard_input_fallback(
     let mut forwarded_keyboard_inputs = text_input_keyboard_events
         .read()
         .filter_map(|event| match event {
-            TextInputKeyboardEvent::KeyboardInput(keyboard_input) => Some(keyboard_input.clone()),
+            TextInputKeyboardEvent::KeyboardInput(keyboard_input) => Some(keyboard_input),
             TextInputKeyboardEvent::KeyboardFocusLost(_) => None,
         })
-        .collect::<VecDeque<_>>();
+        .peekable();
 
     for keyboard_input in keyboard_inputs.read() {
-        if forwarded_keyboard_inputs.front() == Some(keyboard_input) {
-            forwarded_keyboard_inputs.pop_front();
+        if forwarded_keyboard_inputs
+            .next_if(|forwarded_keyboard_input| *forwarded_keyboard_input == keyboard_input)
+            .is_some()
+        {
             continue;
         }
 
