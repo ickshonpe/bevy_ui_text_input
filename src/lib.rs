@@ -22,6 +22,7 @@ use bevy::ecs::resource::Resource;
 use bevy::ecs::schedule::IntoScheduleConfigs;
 use bevy::ecs::system::Query;
 use bevy::ecs::world::DeferredWorld;
+use bevy::input::keyboard::{KeyboardFocusLost, KeyboardInput};
 use bevy::input_focus::{InputFocus, InputFocusSystems, dispatch_focused_input};
 use bevy::math::{Rect, Vec2};
 use bevy::prelude::ReflectComponent;
@@ -31,12 +32,12 @@ use bevy::text::{GlyphAtlasInfo, LineHeight, TextFont};
 use bevy::text::{Justify, TextColor};
 use bevy::ui::{Node, UiSystems};
 use bevy::ui_render::{RenderUiSystems, extract_text_sections};
-use bevy::window::WindowEvent;
 use cosmic_text::{Buffer, Change, Edit, Editor, Metrics, Wrap};
 use edit::{
-    cursor_blink_system, mouse_wheel_scroll, on_drag_text_input, on_focused_window_event,
-    on_move_clear_multi_click, on_multi_click_set_selection, on_raw_keyboard_input_fallback,
-    on_text_input_pressed, process_text_input_queues,
+    cursor_blink_system, forward_text_input_keyboard_events, mouse_wheel_scroll,
+    on_drag_text_input, on_focused_text_input_keyboard_event, on_move_clear_multi_click,
+    on_multi_click_set_selection, on_raw_keyboard_input_fallback, on_text_input_pressed,
+    process_text_input_queues,
 };
 use render::{extract_text_input_nodes, extract_text_input_prompts};
 use text_input_pipeline::{
@@ -49,15 +50,18 @@ pub struct TextInputPlugin;
 impl Plugin for TextInputPlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_message::<SubmitText>()
+            .add_message::<TextInputKeyboardEvent>()
             .add_plugins(bevy::input_focus::InputDispatchPlugin)
             .init_resource::<TextInputGlobalState>()
             .init_resource::<TextInputPipeline>()
             .init_resource::<clipboard::Clipboard>()
-            .add_observer(on_focused_window_event)
+            .add_observer(on_focused_text_input_keyboard_event)
             .add_systems(
                 PreUpdate,
                 (
-                    dispatch_focused_input::<WindowEvent>.in_set(InputFocusSystems::Dispatch),
+                    forward_text_input_keyboard_events.before(InputFocusSystems::Dispatch),
+                    dispatch_focused_input::<TextInputKeyboardEvent>
+                        .in_set(InputFocusSystems::Dispatch),
                     on_raw_keyboard_input_fallback.after(InputFocusSystems::Dispatch),
                 ),
             )
@@ -172,6 +176,12 @@ pub struct SubmitText {
     pub entity: Entity,
     /// The submitted text
     pub text: String,
+}
+
+#[derive(Message, Clone)]
+pub enum TextInputKeyboardEvent {
+    KeyboardInput(KeyboardInput),
+    KeyboardFocusLost(KeyboardFocusLost),
 }
 
 /// Mode of text input

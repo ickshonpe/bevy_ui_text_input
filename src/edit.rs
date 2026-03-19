@@ -4,6 +4,7 @@ use crate::SubmitText;
 use crate::TextInputBuffer;
 use crate::TextInputFilter;
 use crate::TextInputGlobalState;
+use crate::TextInputKeyboardEvent;
 use crate::TextInputMode;
 use crate::TextInputNode;
 use crate::TextInputQueue;
@@ -623,17 +624,38 @@ pub fn process_text_input_queues(
     }
 }
 
-pub fn on_focused_window_event(
-    trigger: On<FocusedInput<WindowEvent>>,
+pub fn forward_text_input_keyboard_events(
+    mut window_events: MessageReader<WindowEvent>,
+    mut text_input_keyboard_events: MessageWriter<TextInputKeyboardEvent>,
+) {
+    for window_event in window_events.read() {
+        match window_event {
+            WindowEvent::KeyboardInput(keyboard_input) => {
+                text_input_keyboard_events.write(TextInputKeyboardEvent::KeyboardInput(
+                    keyboard_input.clone(),
+                ));
+            }
+            WindowEvent::KeyboardFocusLost(keyboard_focus_lost) => {
+                text_input_keyboard_events.write(TextInputKeyboardEvent::KeyboardFocusLost(
+                    keyboard_focus_lost.clone(),
+                ));
+            }
+            _ => {}
+        }
+    }
+}
+
+pub fn on_focused_text_input_keyboard_event(
+    trigger: On<FocusedInput<TextInputKeyboardEvent>>,
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
     match &trigger.event().input {
-        WindowEvent::KeyboardFocusLost(_) => {
+        TextInputKeyboardEvent::KeyboardFocusLost(_) => {
             global_state.shift = false;
             global_state.command = false;
         }
-        WindowEvent::KeyboardInput(keyboard_input) => {
+        TextInputKeyboardEvent::KeyboardInput(keyboard_input) => {
             let event_target = trigger.event_target();
             if event_target != trigger.original_event_target() {
                 return;
@@ -646,20 +668,20 @@ pub fn on_focused_window_event(
                 &mut global_state,
             );
         }
-        _ => {}
     }
 }
 
 pub fn on_raw_keyboard_input_fallback(
     mut keyboard_inputs: MessageReader<KeyboardInput>,
-    mut window_events: MessageReader<WindowEvent>,
+    mut text_input_keyboard_events: MessageReader<TextInputKeyboardEvent>,
     input_focus: Res<InputFocus>,
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
     let mut window_keyboard_inputs = HashMap::<KeyboardInput, usize>::new();
-    for window_event in window_events.read() {
-        let WindowEvent::KeyboardInput(keyboard_input) = window_event else {
+    for text_input_keyboard_event in text_input_keyboard_events.read() {
+        let TextInputKeyboardEvent::KeyboardInput(keyboard_input) = text_input_keyboard_event
+        else {
             continue;
         };
 
