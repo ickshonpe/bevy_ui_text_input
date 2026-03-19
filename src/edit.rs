@@ -23,7 +23,6 @@ use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::Key;
-use bevy::input::keyboard::KeyboardFocusLost;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::MouseScrollUnit;
 use bevy::input::mouse::MouseWheel;
@@ -40,6 +39,7 @@ use bevy::picking::pointer::PointerButton;
 use bevy::time::Time;
 use bevy::ui::ComputedNode;
 use bevy::ui::UiGlobalTransform;
+use bevy::window::WindowEvent;
 use cosmic_text::Action;
 use cosmic_text::BorrowedWithFontSystem;
 use cosmic_text::Change;
@@ -621,49 +621,45 @@ pub fn process_text_input_queues(
     }
 }
 
-pub fn on_focused_keyboard_input(
-    trigger: On<FocusedInput<KeyboardInput>>,
+pub fn on_focused_window_event(
+    trigger: On<FocusedInput<WindowEvent>>,
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
-    sync_text_input_modifier_state(&trigger.event().input, &mut global_state);
+    match &trigger.event().input {
+        WindowEvent::KeyboardFocusLost(_) => {
+            global_state.shift = false;
+            global_state.command = false;
+        }
+        WindowEvent::KeyboardInput(keyboard_input) => {
+            sync_text_input_modifier_state(keyboard_input, &mut global_state);
 
-    let event_target = trigger.event_target();
-    if event_target != trigger.original_event_target() {
-        return;
+            let event_target = trigger.event_target();
+            if event_target != trigger.original_event_target() {
+                return;
+            }
+
+            if let Ok((input, mut queue)) = query.get_mut(event_target) {
+                let TextInputGlobalState {
+                    shift,
+                    overwrite_mode,
+                    command,
+                } = &mut *global_state;
+
+                queue_text_input_action(
+                    &input.mode,
+                    shift,
+                    overwrite_mode,
+                    command,
+                    keyboard_input,
+                    |action| {
+                        queue.add(action);
+                    },
+                );
+            }
+        }
+        _ => {}
     }
-
-    if let Ok((input, mut queue)) = query.get_mut(event_target) {
-        let TextInputGlobalState {
-            shift,
-            overwrite_mode,
-            command,
-        } = &mut *global_state;
-
-        queue_text_input_action(
-            &input.mode,
-            shift,
-            overwrite_mode,
-            command,
-            &trigger.event().input,
-            |action| {
-                queue.add(action);
-            },
-        );
-    }
-}
-
-pub fn clear_text_input_modifiers_on_focus_lost(
-    mut keyboard_focus_lost: MessageReader<KeyboardFocusLost>,
-    mut global_state: ResMut<TextInputGlobalState>,
-) {
-    if keyboard_focus_lost.is_empty() {
-        return;
-    }
-
-    global_state.shift = false;
-    global_state.command = false;
-    keyboard_focus_lost.clear();
 }
 
 fn sync_text_input_modifier_state(

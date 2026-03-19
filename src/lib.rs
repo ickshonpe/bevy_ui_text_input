@@ -22,8 +22,7 @@ use bevy::ecs::resource::Resource;
 use bevy::ecs::schedule::IntoScheduleConfigs;
 use bevy::ecs::system::Query;
 use bevy::ecs::world::DeferredWorld;
-use bevy::input::InputSystems;
-use bevy::input_focus::{InputFocus, InputFocusSystems};
+use bevy::input_focus::{InputFocus, InputFocusSystems, dispatch_focused_input};
 use bevy::math::{Rect, Vec2};
 use bevy::prelude::ReflectComponent;
 use bevy::reflect::{Reflect, std_traits::ReflectDefault};
@@ -32,11 +31,12 @@ use bevy::text::{GlyphAtlasInfo, LineHeight, TextFont};
 use bevy::text::{Justify, TextColor};
 use bevy::ui::{Node, UiSystems};
 use bevy::ui_render::{RenderUiSystems, extract_text_sections};
+use bevy::window::WindowEvent;
 use cosmic_text::{Buffer, Change, Edit, Editor, Metrics, Wrap};
 use edit::{
-    clear_text_input_modifiers_on_focus_lost, cursor_blink_system, mouse_wheel_scroll,
-    on_drag_text_input, on_focused_keyboard_input, on_move_clear_multi_click,
-    on_multi_click_set_selection, on_text_input_pressed, process_text_input_queues,
+    cursor_blink_system, mouse_wheel_scroll, on_drag_text_input, on_focused_window_event,
+    on_move_clear_multi_click, on_multi_click_set_selection, on_text_input_pressed,
+    process_text_input_queues,
 };
 use render::{extract_text_input_nodes, extract_text_input_prompts};
 use text_input_pipeline::{
@@ -53,12 +53,10 @@ impl Plugin for TextInputPlugin {
             .init_resource::<TextInputGlobalState>()
             .init_resource::<TextInputPipeline>()
             .init_resource::<clipboard::Clipboard>()
-            .add_observer(on_focused_keyboard_input)
+            .add_observer(on_focused_window_event)
             .add_systems(
                 PreUpdate,
-                clear_text_input_modifiers_on_focus_lost
-                    .after(InputSystems)
-                    .after(InputFocusSystems::Dispatch),
+                dispatch_focused_input::<WindowEvent>.in_set(InputFocusSystems::Dispatch),
             )
             .add_systems(
                 PostUpdate,
