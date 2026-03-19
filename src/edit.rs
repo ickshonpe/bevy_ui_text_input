@@ -20,7 +20,6 @@ use bevy::ecs::system::Commands;
 use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
-use bevy::input::ButtonInput;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::Key;
 use bevy::input::keyboard::KeyboardInput;
@@ -646,18 +645,22 @@ pub fn on_focused_keyboard_input(
 }
 
 pub fn sync_text_input_modifier_state(
-    key_input: Res<ButtonInput<Key>>,
+    mut keyboard_input_events: MessageReader<KeyboardInput>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
-    global_state.shift = key_input.pressed(Key::Shift);
-
-    #[cfg(target_os = "macos")]
-    {
-        global_state.command = key_input.pressed(Key::Control) || key_input.pressed(Key::Super);
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        global_state.command = key_input.pressed(Key::Control);
+    for keyboard_input in keyboard_input_events.read() {
+        match keyboard_input.logical_key {
+            Key::Shift => {
+                global_state.shift = keyboard_input.state == ButtonState::Pressed;
+            }
+            Key::Control => {
+                global_state.command = keyboard_input.state == ButtonState::Pressed;
+            }
+            #[cfg(target_os = "macos")]
+            Key::Super => {
+                global_state.command = keyboard_input.state == ButtonState::Pressed;
+            }
+            _ => {}
+        }
     }
 }

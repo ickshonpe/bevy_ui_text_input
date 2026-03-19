@@ -7,7 +7,7 @@ pub mod text_input_pipeline;
 use std::collections::VecDeque;
 
 use actions::TextInputAction;
-use bevy::app::{Plugin, PostUpdate, PreUpdate};
+use bevy::app::{Plugin, PostUpdate};
 use bevy::asset::AssetEventSystems;
 use bevy::color::Color;
 use bevy::color::palettes::css::SKY_BLUE;
@@ -22,8 +22,7 @@ use bevy::ecs::resource::Resource;
 use bevy::ecs::schedule::IntoScheduleConfigs;
 use bevy::ecs::system::Query;
 use bevy::ecs::world::DeferredWorld;
-use bevy::input::InputSystems;
-use bevy::input_focus::{InputFocus, InputFocusSystems};
+use bevy::input_focus::InputFocus;
 use bevy::math::{Rect, Vec2};
 use bevy::prelude::ReflectComponent;
 use bevy::reflect::{Reflect, std_traits::ReflectDefault};
@@ -54,14 +53,9 @@ impl Plugin for TextInputPlugin {
             .init_resource::<TextInputPipeline>()
             .init_resource::<clipboard::Clipboard>()
             .add_systems(
-                PreUpdate,
-                sync_text_input_modifier_state
-                    .after(InputSystems)
-                    .before(InputFocusSystems::Dispatch),
-            )
-            .add_systems(
                 PostUpdate,
                 (
+                    sync_text_input_modifier_state,
                     remove_dropped_font_atlas_sets_from_text_input_pipeline
                         .before(AssetEventSystems),
                     (
