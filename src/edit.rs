@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::SubmitText;
 use crate::TextInputBuffer;
 use crate::TextInputFilter;
@@ -676,16 +678,20 @@ pub fn on_raw_keyboard_input_fallback(
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
-    let saw_forwarded_keyboard_input = text_input_keyboard_events
+    let mut forwarded_keyboard_inputs = text_input_keyboard_events
         .read()
-        .any(|event| matches!(event, TextInputKeyboardEvent::KeyboardInput(_)));
-
-    if saw_forwarded_keyboard_input {
-        keyboard_inputs.clear();
-        return;
-    }
+        .filter_map(|event| match event {
+            TextInputKeyboardEvent::KeyboardInput(keyboard_input) => Some(keyboard_input.clone()),
+            TextInputKeyboardEvent::KeyboardFocusLost(_) => None,
+        })
+        .collect::<VecDeque<_>>();
 
     for keyboard_input in keyboard_inputs.read() {
+        if forwarded_keyboard_inputs.front() == Some(keyboard_input) {
+            forwarded_keyboard_inputs.pop_front();
+            continue;
+        }
+
         handle_keyboard_input(
             keyboard_input,
             input_focus.get(),
