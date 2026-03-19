@@ -23,6 +23,7 @@ use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::Key;
+use bevy::input::keyboard::KeyboardFocusLost;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::MouseScrollUnit;
 use bevy::input::mouse::MouseWheel;
@@ -650,6 +651,19 @@ pub fn on_focused_keyboard_input(
             },
         );
     }
+}
+
+pub fn clear_text_input_modifiers_on_focus_lost(
+    mut keyboard_focus_lost: MessageReader<KeyboardFocusLost>,
+    mut global_state: ResMut<TextInputGlobalState>,
+) {
+    if keyboard_focus_lost.is_empty() {
+        return;
+    }
+
+    global_state.shift = false;
+    global_state.command = false;
+    keyboard_focus_lost.clear();
 }
 
 fn sync_text_input_modifier_state(
