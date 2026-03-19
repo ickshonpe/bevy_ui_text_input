@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::SubmitText;
 use crate::TextInputBuffer;
 use crate::TextInputFilter;
@@ -678,26 +676,16 @@ pub fn on_raw_keyboard_input_fallback(
     mut query: Query<(&TextInputNode, &mut TextInputQueue)>,
     mut global_state: ResMut<TextInputGlobalState>,
 ) {
-    let mut window_keyboard_inputs = HashMap::<KeyboardInput, usize>::new();
-    for text_input_keyboard_event in text_input_keyboard_events.read() {
-        let TextInputKeyboardEvent::KeyboardInput(keyboard_input) = text_input_keyboard_event
-        else {
-            continue;
-        };
+    let saw_forwarded_keyboard_input = text_input_keyboard_events
+        .read()
+        .any(|event| matches!(event, TextInputKeyboardEvent::KeyboardInput(_)));
 
-        *window_keyboard_inputs
-            .entry(keyboard_input.clone())
-            .or_default() += 1;
+    if saw_forwarded_keyboard_input {
+        keyboard_inputs.clear();
+        return;
     }
 
     for keyboard_input in keyboard_inputs.read() {
-        if let Some(seen_count) = window_keyboard_inputs.get_mut(keyboard_input)
-            && *seen_count > 0
-        {
-            *seen_count -= 1;
-            continue;
-        }
-
         handle_keyboard_input(
             keyboard_input,
             input_focus.get(),
